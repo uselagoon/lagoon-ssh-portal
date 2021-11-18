@@ -2,6 +2,8 @@ package lagoondb
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,6 +37,9 @@ type User struct {
 	UUID *uuid.UUID `db:"uuid"`
 }
 
+// ErrNoResult is returned by client methods if there is no result.
+var ErrNoResult = errors.New("no rows in result set")
+
 // NewClient returns a new Lagoon DB Client.
 func NewClient(ctx context.Context, dsn string) (*Client, error) {
 	db, err := sqlx.ConnectContext(ctx, "mysql", dsn)
@@ -55,7 +60,7 @@ func NewClient(ctx context.Context, dsn string) (*Client, error) {
 // Namespace name (on Openshift this is the project name).
 func (c *Client) EnvironmentByNamespaceName(name string) (*Environment, error) {
 	env := Environment{}
-	return &env, c.db.GetContext(c.ctx, &env, `
+	err := c.db.GetContext(c.ctx, &env, `
 	SELECT
 		environment.name AS name,
 		environment.openshift_project_name AS namespace_name,
@@ -64,14 +69,28 @@ func (c *Client) EnvironmentByNamespaceName(name string) (*Environment, error) {
 		environment.environment_type AS type
 	FROM environment JOIN project ON environment.project = project.id
 	WHERE environment.openshift_project_name = ?`, name)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoResult
+		}
+		return nil, err
+	}
+	return &env, nil
 }
 
 // UserBySSHFingerprint returns the User associated with the given
 // SSH fingerprint.
 func (c *Client) UserBySSHFingerprint(fingerprint string) (*User, error) {
 	user := User{}
-	return &user, c.db.GetContext(c.ctx, &user, `
+	err := c.db.GetContext(c.ctx, &user, `
 	SELECT user_ssh_key.usid AS uuid
 	FROM user_ssh_key JOIN ssh_key ON user_ssh_key.skid = ssh_key.id
 	WHERE ssh_key.key_fingerprint = ?`, fingerprint)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoResult
+		}
+		return nil, err
+	}
+	return &user, nil
 }
