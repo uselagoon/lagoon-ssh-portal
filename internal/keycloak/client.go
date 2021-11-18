@@ -2,12 +2,18 @@ package keycloak
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -20,7 +26,7 @@ type Client struct {
 	baseURL      *url.URL
 	clientID     string
 	clientSecret string
-	jwtSecret    string
+	jwtPubKey    *rsa.PublicKey
 	log          *zap.Logger
 }
 
@@ -38,19 +44,67 @@ type userAttributes struct {
 
 // NewClient creates a new keycloak client.
 func NewClient(ctx context.Context, log *zap.Logger, baseURL, clientID,
-	clientSecret, jwtSecret string) (*Client, error) {
+	clientSecret string) (*Client, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("couldn't parse base URL %s: %v", baseURL, err)
+	}
+	pubKey, err := publicKey(*u)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get realm public key: %v", err)
 	}
 	return &Client{
 		ctx:          ctx,
 		baseURL:      u,
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		jwtSecret:    jwtSecret,
+		jwtPubKey:    pubKey,
 		log:          log,
 	}, nil
+}
+
+// publicKey queries the keycloak lagoon realm metadata endpoint and returns
+// the RSA public key used to sign JWTs
+func publicKey(u url.URL) (*rsa.PublicKey, error) {
+	// get the metadata JSON
+	client := &http.Client{Timeout: 10 * time.Second}
+	u.Path = path.Join(u.Path, `/auth/realms/lagoon`)
+	res, err := client.Get(u.String())
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get realm metadata: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode > 299 {
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("bad realm metadata response: %d\n%s",
+			res.StatusCode, body)
+	}
+	// extract public key
+	jd := json.NewDecoder(res.Body)
+	metadata := struct {
+		PubKey string `json:"public_key"`
+	}{}
+	if err = jd.Decode(&metadata); err != nil {
+		return nil, fmt.Errorf("couldn't decode public key from metadata: %v", nil)
+	}
+	if len(metadata.PubKey) == 0 {
+		return nil, fmt.Errorf("couldn't extract public key from metadata")
+	}
+	spew.Dump(metadata)
+	// decode and parse RSA public key
+	pubKeyBytes, err := base64.StdEncoding.DecodeString(metadata.PubKey)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't decode public key value: %v", err)
+	}
+	pubKey, err := x509.ParsePKIXPublicKey(pubKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse PKIX pub key: %v", err)
+	}
+	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("unexpected public key type: %T", pubKey)
+	}
+	return rsaPubKey, nil
 }
 
 // UserRolesAndGroups queries Keycloak given the user UUID, and returns the
@@ -88,8 +142,9 @@ func (c *Client) UserRolesAndGroups(userUUID *uuid.UUID) ([]string, []string,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't parse verified access token: %v", err)
 	}
+	spew.Dump(tok)
 	var attr userAttributes
-	if err = tok.Claims(c.jwtSecret, &attr); err != nil {
+	if err = tok.Claims(c.jwtPubKey, &attr); err != nil {
 		return nil, nil, nil,
 			fmt.Errorf("couldn't extract token claims: %v", err)
 	}

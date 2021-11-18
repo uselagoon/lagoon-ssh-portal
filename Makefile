@@ -5,9 +5,9 @@ test: mod-tidy generate
 	go test -v ./...
 
 .PHONY: mod-tidy
-mod-tidy: generate
+mod-tidy:
 	go mod tidy
 
 .PHONY: generate
-generate:
+generate: mod-tidy
 	go generate ./...

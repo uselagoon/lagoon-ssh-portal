@@ -19,7 +19,6 @@ type ServeCmd struct {
 	APIDBDatabase        string `kong:"default='infrastructure',env='API_DB_DATABASE',help='Lagoon API DB Database Name'"`
 	APIDBPassword        string `kong:"required,env='API_DB_PASSWORD',help='Lagoon API DB Password'"`
 	APIDBUsername        string `kong:"default='api',env='API_DB_USERNAME',help='Lagoon API DB Username'"`
-	JWTSecret            string `kong:"required,env='JWTSECRET',help='JWT Symmetric Secret'"`
 	KeycloakBaseURL      string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
@@ -62,7 +61,7 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	}
 	// init keycloak client
 	k, err := keycloak.NewClient(ctx, log, cmd.KeycloakBaseURL,
-		cmd.KeycloakClientID, cmd.KeycloakClientSecret, cmd.JWTSecret)
+		cmd.KeycloakClientID, cmd.KeycloakClientSecret)
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}

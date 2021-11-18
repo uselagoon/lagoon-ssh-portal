@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/alecthomas/kong v0.2.18
+	github.com/davecgh/go-spew v1.1.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/jmoiron/sqlx v1.3.4
