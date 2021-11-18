@@ -6,22 +6,24 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/serviceapi"
 	"go.uber.org/zap"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 // ServeCmd represents the serve command.
 type ServeCmd struct {
-	NATSServer           string `kong:"required,help='NATS server URL (nats://... or tls://...)'"`
-	APIDB                string `kong:"required,help='Lagoon API Database DSN (https://github.com/go-sql-driver/mysql#dsn-data-source-name)'"`
-	JWTSecret            string `kong:"required,help='JWT Symmetric Secret'"`
-	KeycloakBaseURL      string `kong:"required,help='Keycloak Base URL'"`
-	KeycloakClientID     string `kong:"default='service-api',help='Keycloak OAuth2 Client ID'"`
-	KeycloakClientSecret string `kong:"required,help='Keycloak OAuth2 Client Secret'"`
+	APIDBAddress         string `kong:"required,env='API_DB_ADDRESS',help='Lagoon API DB Address (host[:port])'"`
+	APIDBDatabase        string `kong:"default='infrastructure',env='API_DB_DATABASE',help='Lagoon API DB Database Name'"`
+	APIDBPassword        string `kong:"required,env='API_DB_PASSWORD',help='Lagoon API DB Password'"`
+	APIDBUsername        string `kong:"default='api',env='API_DB_USERNAME',help='Lagoon API DB Username'"`
+	JWTSecret            string `kong:"required,env='JWTSECRET',help='JWT Symmetric Secret'"`
+	KeycloakBaseURL      string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
+	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
+	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
+	NATSServer           string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
 }
 
 // getContext starts a goroutine to handle ^C gracefully, and returns a context
@@ -48,7 +50,13 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	ctx, cancel := getContext()
 	defer cancel()
 	// init lagoon DB client
-	l, err := lagoondb.NewClient(ctx, cmd.APIDB)
+	dbConf := mysql.NewConfig()
+	dbConf.Addr = cmd.APIDBAddress
+	dbConf.DBName = cmd.APIDBDatabase
+	dbConf.Net = "tcp"
+	dbConf.Passwd = cmd.APIDBPassword
+	dbConf.User = cmd.APIDBUsername
+	l, err := lagoondb.NewClient(ctx, dbConf.FormatDSN())
 	if err != nil {
 		return fmt.Errorf("couldn't init lagoon DBClient: %v", err)
 	}
