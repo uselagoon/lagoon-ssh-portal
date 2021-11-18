@@ -61,9 +61,9 @@ func (c *Client) EnvironmentByNamespaceName(name string) (*Environment, error) {
 		environment.openshift_project_name AS namespace_name,
 		project.id AS project_id,
 		project.name AS project_name,
-		environment.environment_type AS type,
+		environment.environment_type AS type
 	FROM environment JOIN project ON environment.project = project.id
-	WHERE project.openshift_project_name = ?`, name)
+	WHERE environment.openshift_project_name = ?`, name)
 }
 
 // UserBySSHFingerprint returns the User associated with the given
