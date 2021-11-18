@@ -31,6 +31,10 @@ type KeycloakService interface {
 func sshportal(log *zap.Logger, c *nats.EncodedConn, l LagoonDBService,
 	k KeycloakService) nats.Handler {
 	return func(subj, reply string, query *lagoondb.SSHAccessQuery) {
+		if query.SSHFingerprint == "" || query.NamespaceName == "" {
+			log.Warn("malformed sshportal query", zap.Any("query", query))
+			return
+		}
 		// get the environment
 		env, err := l.EnvironmentByNamespaceName(query.NamespaceName)
 		if err != nil {
