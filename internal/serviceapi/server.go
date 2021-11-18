@@ -63,7 +63,14 @@ func sshportal(log *zap.Logger, c *nats.EncodedConn, l LagoonDBService,
 		// calculate permission
 		ok := permission.UserCanSSHToEnvironment(env, realmRoles, userGroups,
 			groupProjectIDs)
-		c.Publish(reply, ok)
+		if err = c.Publish(reply, ok); err != nil {
+			log.Error("couldn't publish reply",
+				zap.Any("query", query),
+				zap.Bool("reply value", ok),
+				zap.String("user UUID", user.UUID.String()),
+				zap.Error(err))
+			return
+		}
 	}
 }
 
