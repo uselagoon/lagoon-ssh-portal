@@ -13,7 +13,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -90,7 +89,6 @@ func publicKey(u url.URL) (*rsa.PublicKey, error) {
 	if len(metadata.PubKey) == 0 {
 		return nil, fmt.Errorf("couldn't extract public key from metadata")
 	}
-	spew.Dump(metadata)
 	// decode and parse RSA public key
 	pubKeyBytes, err := base64.StdEncoding.DecodeString(metadata.PubKey)
 	if err != nil {
@@ -113,7 +111,7 @@ func publicKey(u url.URL) (*rsa.PublicKey, error) {
 func (c *Client) UserRolesAndGroups(userUUID *uuid.UUID) ([]string, []string,
 	map[string][]int, error) {
 	// get user token
-	tokenURL := c.baseURL
+	tokenURL := *c.baseURL
 	tokenURL.Path = path.Join(tokenURL.Path,
 		`/auth/realms/lagoon/protocol/openid-connect/token`)
 	userConfig := oauth2.Config{
@@ -142,7 +140,6 @@ func (c *Client) UserRolesAndGroups(userUUID *uuid.UUID) ([]string, []string,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't parse verified access token: %v", err)
 	}
-	spew.Dump(tok)
 	var attr userAttributes
 	if err = tok.Claims(c.jwtPubKey, &attr); err != nil {
 		return nil, nil, nil,
