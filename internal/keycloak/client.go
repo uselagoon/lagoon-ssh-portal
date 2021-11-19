@@ -29,18 +29,6 @@ type Client struct {
 	log          *zap.Logger
 }
 
-// realmAccess is a helper struct for json unmarshalling
-type realmAccess struct {
-	Roles []string `json:"roles"`
-}
-
-// attributes injected into the access token by keycloak
-type userAttributes struct {
-	RealmAccess     *realmAccess     `json:"realm_access"`
-	UserGroups      []string         `json:"groups"`
-	GroupProjectIDs map[string][]int `json:"group_lagoon_project_ids"`
-}
-
 // NewClient creates a new keycloak client.
 func NewClient(ctx context.Context, log *zap.Logger, baseURL, clientID,
 	clientSecret string) (*Client, error) {
@@ -145,5 +133,5 @@ func (c *Client) UserRolesAndGroups(userUUID *uuid.UUID) ([]string, []string,
 		return nil, nil, nil,
 			fmt.Errorf("couldn't extract token claims: %v", err)
 	}
-	return attr.RealmAccess.Roles, attr.UserGroups, attr.GroupProjectIDs, nil
+	return attr.RealmRoles, attr.UserGroups, attr.GroupProjectIDs, nil
 }
