@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new-tag: ${{ steps.bump-tag.outputs.new }}
+      new-tag-version: ${{ steps.bump-tag.outputs.new_tag_version }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -32,6 +33,7 @@ jobs:
           git tag $(ccv)
           git push --tags
           echo "::set-output name=new::true"
+          echo "::set-output name=new_tag_version::$(git tag --points-at HEAD)"
         fi
   release:
     needs: tag
@@ -67,7 +69,8 @@ jobs:
       with:
         images: uselagoon/lagoon-ssh-portal/service-api
         tags: |
-          type=semver,pattern={{raw}}
+          ${{ needs.tag.outputs.new-tag-version }}
+          latest
     - name: Build and push service-api container image
       id: docker_build
       uses: docker/build-push-action@v2
