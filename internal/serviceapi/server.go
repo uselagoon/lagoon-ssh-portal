@@ -2,6 +2,7 @@ package serviceapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -31,9 +32,22 @@ type KeycloakService interface {
 func sshportal(log *zap.Logger, c *nats.EncodedConn, l LagoonDBService,
 	k KeycloakService) nats.Handler {
 	return func(subj, reply string, query *lagoondb.SSHAccessQuery) {
+		var ok bool
+		var realmRoles, userGroups []string
+		var groupProjectIDs map[string][]int
+		// sanity check the query
+		if query.SSHFingerprint == "" || query.NamespaceName == "" {
+			log.Warn("malformed sshportal query", zap.Any("query", query))
+			return
+		}
 		// get the environment
 		env, err := l.EnvironmentByNamespaceName(query.NamespaceName)
 		if err != nil {
+			if errors.Is(err, lagoondb.ErrNoResult) {
+				log.Warn("unknown namespace name",
+					zap.Any("query", query), zap.Error(err))
+				return
+			}
 			log.Error("couldn't query environment",
 				zap.Any("query", query), zap.Error(err))
 			return
@@ -41,12 +55,17 @@ func sshportal(log *zap.Logger, c *nats.EncodedConn, l LagoonDBService,
 		// get the user
 		user, err := l.UserBySSHFingerprint(query.SSHFingerprint)
 		if err != nil {
+			if errors.Is(err, lagoondb.ErrNoResult) {
+				log.Debug("unknown SSH Fingerprint",
+					zap.Any("query", query), zap.Error(err))
+				goto reply
+			}
 			log.Error("couldn't query user",
 				zap.Any("query", query), zap.Error(err))
 			return
 		}
 		// get the user roles and groups
-		realmRoles, userGroups, groupProjectIDs, err :=
+		realmRoles, userGroups, groupProjectIDs, err =
 			k.UserRolesAndGroups(user.UUID)
 		if err != nil {
 			log.Error("couldn't query user roles and groups",
@@ -61,9 +80,16 @@ func sshportal(log *zap.Logger, c *nats.EncodedConn, l LagoonDBService,
 			zap.Any("group project IDs", groupProjectIDs),
 			zap.String("user UUID", user.UUID.String()))
 		// calculate permission
-		ok := permission.UserCanSSHToEnvironment(env, realmRoles, userGroups,
+		ok = permission.UserCanSSHToEnvironment(env, realmRoles, userGroups,
 			groupProjectIDs)
-		c.Publish(reply, ok)
+	reply:
+		if err = c.Publish(reply, ok); err != nil {
+			log.Error("couldn't publish reply",
+				zap.Any("query", query),
+				zap.Bool("reply value", ok),
+				zap.String("user UUID", user.UUID.String()),
+				zap.Error(err))
+		}
 	}
 }
 
