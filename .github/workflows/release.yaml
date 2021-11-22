@@ -66,6 +66,8 @@ jobs:
       uses: docker/metadata-action@v3
       with:
         images: uselagoon/lagoon-ssh-portal/service-api
+        tags: |
+          type=semver,pattern={{raw}}
     - name: Build and push service-api container image
       id: docker_build
       uses: docker/build-push-action@v2
