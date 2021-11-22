@@ -67,7 +67,7 @@ jobs:
       id: service_api_meta
       uses: docker/metadata-action@v3
       with:
-        images: uselagoon/lagoon-ssh-portal/service-api
+        images: ghcr.io/uselagoon/lagoon-ssh-portal/service-api
         tags: |
           ${{ needs.tag.outputs.new-tag-version }}
           latest
@@ -76,7 +76,7 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         push: true
-        tags: ghcr.io/${{ steps.service_api_meta.outputs.tags }}
+        tags: ${{ steps.service_api_meta.outputs.tags }}
         labels: ${{ steps.service_api_meta.outputs.labels }}
         file: deploy/service-api/Dockerfile
         context: dist/lagoon-ssh-portal_linux_amd64
