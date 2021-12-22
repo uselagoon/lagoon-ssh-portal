@@ -9,7 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
+	"go.opentelemetry.io/otel"
 )
+
+const pkgName = "github.com/uselagoon/ssh-portal/internal/lagoondb"
 
 // SSHAccessQuery defines the structure of an SSH access query.
 type SSHAccessQuery struct {
@@ -19,8 +22,7 @@ type SSHAccessQuery struct {
 
 // Client is a Lagoon API-DB client
 type Client struct {
-	db  *sqlx.DB
-	ctx context.Context
+	db *sqlx.DB
 }
 
 // Environment is a Lagoon project environment.
@@ -51,16 +53,19 @@ func NewClient(ctx context.Context, dsn string) (*Client, error) {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 	return &Client{
-		db:  db,
-		ctx: ctx,
+		db: db,
 	}, nil
 }
 
 // EnvironmentByNamespaceName returns the Environment associated with the given
 // Namespace name (on Openshift this is the project name).
-func (c *Client) EnvironmentByNamespaceName(name string) (*Environment, error) {
+func (c *Client) EnvironmentByNamespaceName(ctx context.Context, name string) (*Environment, error) {
+	// set up tracing
+	ctx, span := otel.Tracer(pkgName).Start(ctx, "EnvironmentByNamespaceName")
+	defer span.End()
+	// run query
 	env := Environment{}
-	err := c.db.GetContext(c.ctx, &env, `
+	err := c.db.GetContext(ctx, &env, `
 	SELECT
 		environment.name AS name,
 		environment.openshift_project_name AS namespace_name,
@@ -80,9 +85,13 @@ func (c *Client) EnvironmentByNamespaceName(name string) (*Environment, error) {
 
 // UserBySSHFingerprint returns the User associated with the given
 // SSH fingerprint.
-func (c *Client) UserBySSHFingerprint(fingerprint string) (*User, error) {
+func (c *Client) UserBySSHFingerprint(ctx context.Context, fingerprint string) (*User, error) {
+	// set up tracing
+	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserBySSHFingerprint")
+	defer span.End()
+	// run query
 	user := User{}
-	err := c.db.GetContext(c.ctx, &user, `
+	err := c.db.GetContext(ctx, &user, `
 	SELECT user_ssh_key.usid AS uuid
 	FROM user_ssh_key JOIN ssh_key ON user_ssh_key.skid = ssh_key.id
 	WHERE ssh_key.key_fingerprint = ?`, fingerprint)

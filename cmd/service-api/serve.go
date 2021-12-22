@@ -9,7 +9,9 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/serviceapi"
+	"github.com/uselagoon/ssh-portal/internal/metrics"
+	"github.com/uselagoon/ssh-portal/internal/server"
+	"github.com/uselagoon/ssh-portal/internal/tracing"
 	"go.uber.org/zap"
 )
 
@@ -46,6 +48,20 @@ func getContext() (context.Context, func()) {
 
 // Run the serve command to service API requests.
 func (cmd *ServeCmd) Run(log *zap.Logger) error {
+	// instrumentation requires a separate context because deferred Shutdown()
+	// will exit immediately if the context is already done.
+	ictx := context.Background()
+	// init metrics
+	m := metrics.NewServer(log)
+	defer m.Shutdown(ictx) //nolint:errcheck
+	// init tracing
+	w, tp, err := tracing.NewTracerProvider(log, version)
+	if err != nil {
+		return fmt.Errorf("couldn't init tracing: %v", err)
+	}
+	defer w.Close()         //nolint:errcheck
+	defer tp.Shutdown(ictx) //nolint:errcheck
+	// get main process context
 	ctx, cancel := getContext()
 	defer cancel()
 	// init lagoon DB client
@@ -66,5 +82,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSServer)
+	return server.ServeNATS(ctx, log, l, k, cmd.NATSServer)
 }
