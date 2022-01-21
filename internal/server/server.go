@@ -60,6 +60,12 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 			if errors.Is(err, lagoondb.ErrNoResult) {
 				log.Warn("unknown namespace name",
 					zap.Any("query", query), zap.Error(err))
+				if err = c.Publish(replySubject, false); err != nil {
+					log.Error("couldn't publish reply",
+						zap.Any("query", query),
+						zap.Bool("reply value", false),
+						zap.Error(err))
+				}
 				return
 			}
 			log.Error("couldn't query environment",
@@ -69,20 +75,20 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 		// get the user
 		user, err := l.UserBySSHFingerprint(ctx, query.SSHFingerprint)
 		if err != nil {
-			if !errors.Is(err, lagoondb.ErrNoResult) {
-				log.Error("couldn't query user", zap.Any("query", query),
-					zap.Error(err))
+			if errors.Is(err, lagoondb.ErrNoResult) {
+				log.Debug("unknown SSH Fingerprint",
+					zap.Any("query", query), zap.Error(err))
+				if err = c.Publish(replySubject, false); err != nil {
+					log.Error("couldn't publish reply",
+						zap.Any("query", query),
+						zap.Bool("reply value", false),
+						zap.String("user UUID", user.UUID.String()),
+						zap.Error(err))
+				}
 				return
 			}
-			log.Debug("unknown SSH Fingerprint",
+			log.Error("couldn't query user by ssh fingerprint",
 				zap.Any("query", query), zap.Error(err))
-			if err = c.Publish(replySubject, false); err != nil {
-				log.Error("couldn't publish reply",
-					zap.Any("query", query),
-					zap.Bool("reply value", false),
-					zap.String("user UUID", user.UUID.String()),
-					zap.Error(err))
-			}
 			return
 		}
 		// get the user roles and groups
