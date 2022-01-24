@@ -72,6 +72,22 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				zap.Any("query", query), zap.Error(err))
 			return
 		}
+		// sanity check the environment we found
+		// if this check fails it likely means a collision in
+		// project+environment -> namespace_name mapping, or some similar logic
+		// error.
+		if (query.ProjectID != 0 && query.ProjectID != env.ProjectID) ||
+			(query.EnvironmentID != 0 && query.EnvironmentID != env.ID) {
+			log.Warn("ID mismatch in environment identification",
+				zap.Any("query", query), zap.Any("env", env), zap.Error(err))
+			if err = c.Publish(replySubject, false); err != nil {
+				log.Error("couldn't publish reply",
+					zap.Any("query", query),
+					zap.Bool("reply value", false),
+					zap.Error(err))
+			}
+			return
+		}
 		// get the user
 		user, err := l.UserBySSHFingerprint(ctx, query.SSHFingerprint)
 		if err != nil {

@@ -18,6 +18,8 @@ const pkgName = "github.com/uselagoon/ssh-portal/internal/lagoondb"
 type SSHAccessQuery struct {
 	SSHFingerprint string
 	NamespaceName  string
+	ProjectID      int
+	EnvironmentID  int
 }
 
 // Client is a Lagoon API-DB client
@@ -27,6 +29,7 @@ type Client struct {
 
 // Environment is a Lagoon project environment.
 type Environment struct {
+	ID            int                    `db:"id"`
 	Name          string                 `db:"name"`
 	NamespaceName string                 `db:"namespace_name"`
 	ProjectID     int                    `db:"project_id"`
@@ -67,11 +70,12 @@ func (c *Client) EnvironmentByNamespaceName(ctx context.Context, name string) (*
 	env := Environment{}
 	err := c.db.GetContext(ctx, &env, `
 	SELECT
+		environment.environment_type AS type,
+		environment.id AS id,
 		environment.name AS name,
 		environment.openshift_project_name AS namespace_name,
 		project.id AS project_id,
-		project.name AS project_name,
-		environment.environment_type AS type
+		project.name AS project_name
 	FROM environment JOIN project ON environment.project = project.id
 	WHERE environment.openshift_project_name = ?`, name)
 	if err != nil {
