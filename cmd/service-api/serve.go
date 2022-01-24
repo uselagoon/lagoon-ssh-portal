@@ -11,7 +11,6 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/server"
-	"github.com/uselagoon/ssh-portal/internal/tracing"
 	"go.uber.org/zap"
 )
 
@@ -54,13 +53,6 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// init metrics
 	m := metrics.NewServer(log)
 	defer m.Shutdown(ictx) //nolint:errcheck
-	// init tracing
-	w, tp, err := tracing.NewTracerProvider(log, version)
-	if err != nil {
-		return fmt.Errorf("couldn't init tracing: %v", err)
-	}
-	defer w.Close()         //nolint:errcheck
-	defer tp.Shutdown(ictx) //nolint:errcheck
 	// get main process context
 	ctx, cancel := getContext()
 	defer cancel()
