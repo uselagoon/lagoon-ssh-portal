@@ -2,6 +2,13 @@ package main
 
 import "fmt"
 
+var (
+	date        string
+	goVersion   string
+	shortCommit string
+	version     string
+)
+
 // VersionCmd represents the version command.
 type VersionCmd struct{}
 

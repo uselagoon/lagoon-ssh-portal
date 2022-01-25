@@ -5,13 +5,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	date        string
-	goVersion   string
-	shortCommit string
-	version     string
-)
-
 // CLI represents the command-line interface.
 type CLI struct {
 	Debug   bool       `kong:"env='DEBUG',help='Enable debug logging'"`
