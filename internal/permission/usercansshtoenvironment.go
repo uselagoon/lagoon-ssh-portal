@@ -1,11 +1,15 @@
 package permission
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
+	"go.opentelemetry.io/otel"
 )
+
+const pkgName = "github.com/uselagoon/ssh-portal/internal/permission"
 
 // map environment type to role which can SSH
 var envTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
@@ -23,8 +27,11 @@ var envTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
 // UserCanSSHToEnvironment returns true if the given environment can be
 // connected to via SSH by the user with the given realm roles and user groups,
 // and false otherwise.
-func UserCanSSHToEnvironment(env *lagoondb.Environment, realmRoles,
-	userGroups []string, groupProjectIDs map[string][]int) bool {
+func UserCanSSHToEnvironment(ctx context.Context, env *lagoondb.Environment,
+	realmRoles, userGroups []string, groupProjectIDs map[string][]int) bool {
+	// set up tracing
+	_, span := otel.Tracer(pkgName).Start(ctx, "UserCanSSHToEnvironment")
+	defer span.End()
 	// check for platform owner
 	for _, r := range realmRoles {
 		if r == "platform-owner" {

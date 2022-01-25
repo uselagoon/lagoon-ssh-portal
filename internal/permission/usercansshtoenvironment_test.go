@@ -1,6 +1,7 @@
 package permission_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
@@ -173,8 +174,9 @@ func TestUserCanSSH(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			response := permission.UserCanSSHToEnvironment(tc.input.env,
-				tc.input.realmRoles, tc.input.userGroups, tc.input.groupProjectIDs)
+			response := permission.UserCanSSHToEnvironment(context.Background(),
+				tc.input.env, tc.input.realmRoles, tc.input.userGroups,
+				tc.input.groupProjectIDs)
 			if response != tc.expect {
 				tt.Fatalf("expected %v, got %v", tc.expect, response)
 			}

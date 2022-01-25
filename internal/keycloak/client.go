@@ -14,14 +14,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
+const pkgName = "github.com/uselagoon/ssh-portal/internal/keycloak"
+
 // Client is a keycloak client.
 type Client struct {
-	ctx          context.Context
 	baseURL      *url.URL
 	clientID     string
 	clientSecret string
@@ -36,12 +38,11 @@ func NewClient(ctx context.Context, log *zap.Logger, baseURL, clientID,
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse base URL %s: %v", baseURL, err)
 	}
-	pubKey, err := publicKey(*u)
+	pubKey, err := publicKey(ctx, *u)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get realm public key: %v", err)
 	}
 	return &Client{
-		ctx:          ctx,
 		baseURL:      u,
 		clientID:     clientID,
 		clientSecret: clientSecret,
@@ -52,11 +53,15 @@ func NewClient(ctx context.Context, log *zap.Logger, baseURL, clientID,
 
 // publicKey queries the keycloak lagoon realm metadata endpoint and returns
 // the RSA public key used to sign JWTs
-func publicKey(u url.URL) (*rsa.PublicKey, error) {
+func publicKey(ctx context.Context, u url.URL) (*rsa.PublicKey, error) {
 	// get the metadata JSON
 	client := &http.Client{Timeout: 10 * time.Second}
 	u.Path = path.Join(u.Path, `/auth/realms/lagoon`)
-	res, err := client.Get(u.String())
+	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't construct request: %v", err)
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get realm metadata: %v", err)
 	}
@@ -96,8 +101,11 @@ func publicKey(u url.URL) (*rsa.PublicKey, error) {
 // UserRolesAndGroups queries Keycloak given the user UUID, and returns the
 // user's realm roles, group memberships, and the project IDs associated with
 // those groups.
-func (c *Client) UserRolesAndGroups(userUUID *uuid.UUID) ([]string, []string,
-	map[string][]int, error) {
+func (c *Client) UserRolesAndGroups(ctx context.Context,
+	userUUID *uuid.UUID) ([]string, []string, map[string][]int, error) {
+	// set up tracing
+	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserRolesAndGroups")
+	defer span.End()
 	// get user token
 	tokenURL := *c.baseURL
 	tokenURL.Path = path.Join(tokenURL.Path,
@@ -109,7 +117,7 @@ func (c *Client) UserRolesAndGroups(userUUID *uuid.UUID) ([]string, []string,
 			TokenURL: tokenURL.String(),
 		},
 	}
-	ctx := context.WithValue(c.ctx, oauth2.HTTPClient, &http.Client{
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
 		Timeout: 10 * time.Second,
 	})
 	userToken, err := userConfig.Exchange(ctx, "",
