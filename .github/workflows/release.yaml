@@ -68,7 +68,9 @@ jobs:
         binary:
         - service-api
         - ssh-portal
-    needs: release
+    needs:
+    - tag
+    - release
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
