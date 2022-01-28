@@ -8,7 +8,7 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
-	"github.com/uselagoon/ssh-portal/internal/server"
+	"github.com/uselagoon/ssh-portal/internal/serviceapi"
 	"github.com/uselagoon/ssh-portal/internal/signalctx"
 	"go.uber.org/zap"
 )
@@ -54,5 +54,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return server.ServeNATS(ctx, log, l, k, cmd.NATSServer)
+	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSServer)
 }
