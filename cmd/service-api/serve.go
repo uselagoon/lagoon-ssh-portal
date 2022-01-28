@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
-	"github.com/uselagoon/ssh-portal/internal/server"
+	"github.com/uselagoon/ssh-portal/internal/serviceapi"
+	"github.com/uselagoon/ssh-portal/internal/signalctx"
 	"go.uber.org/zap"
 )
 
@@ -26,25 +25,6 @@ type ServeCmd struct {
 	NATSServer           string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
 }
 
-// getContext starts a goroutine to handle ^C gracefully, and returns a context
-// with a "cancel" function which cleans up the signal handling and ensures the
-// goroutine exits. This "cancel" function should be deferred in Run().
-func getContext() (context.Context, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	go func() {
-		select {
-		case <-signalChan:
-			cancel()
-		case <-ctx.Done():
-		}
-		<-signalChan
-		os.Exit(130) // https://tldp.org/LDP/abs/html/exitcodes.html
-	}()
-	return ctx, func() { signal.Stop(signalChan); cancel() }
-}
-
 // Run the serve command to service API requests.
 func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// instrumentation requires a separate context because deferred Shutdown()
@@ -54,7 +34,7 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	m := metrics.NewServer(log)
 	defer m.Shutdown(ictx) //nolint:errcheck
 	// get main process context
-	ctx, cancel := getContext()
+	ctx, cancel := signalctx.GetContext()
 	defer cancel()
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
@@ -74,5 +54,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return server.ServeNATS(ctx, log, l, k, cmd.NATSServer)
+	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSServer)
 }

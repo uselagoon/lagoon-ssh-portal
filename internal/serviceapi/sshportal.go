@@ -1,15 +1,10 @@
-package server
+package serviceapi
 
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sync"
 
-	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/permission"
 	"go.opentelemetry.io/otel"
@@ -17,36 +12,25 @@ import (
 )
 
 const (
-	subject = "lagoon.serviceapi.sshportal"
-	queue   = "service-api"
-	pkgName = "github.com/uselagoon/ssh-portal/internal/server"
+	// SubjectSSHAccessQuery defines the NATS subject for SSH access queries.
+	SubjectSSHAccessQuery = "lagoon.serviceapi.sshportal"
 )
 
-var (
-	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "serviceapi_requests_total",
-		Help: "The total number of requests received",
-	})
-)
-
-// LagoonDBService provides methods for querying the Lagoon API DB.
-type LagoonDBService interface {
-	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
-	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
-}
-
-// KeycloakService provides methods for querying the Keycloak API.
-type KeycloakService interface {
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, map[string][]int, error)
+// SSHAccessQuery defines the structure of an SSH access query.
+type SSHAccessQuery struct {
+	SSHFingerprint string
+	NamespaceName  string
+	ProjectID      int
+	EnvironmentID  int
 }
 
 func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 	l LagoonDBService, k KeycloakService) nats.Handler {
-	return func(_, replySubject string, query *lagoondb.SSHAccessQuery) {
+	return func(_, replySubject string, query *SSHAccessQuery) {
 		var realmRoles, userGroups []string
 		var groupProjectIDs map[string][]int
 		// set up tracing and update metrics
-		ctx, span := otel.Tracer(pkgName).Start(ctx, subject)
+		ctx, span := otel.Tracer(pkgName).Start(ctx, SubjectSSHAccessQuery)
 		defer span.End()
 		requestsCounter.Inc()
 		// sanity check the query
@@ -133,40 +117,4 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				zap.Error(err))
 		}
 	}
-}
-
-// ServeNATS serviceapi NATS requests.
-func ServeNATS(ctx context.Context, log *zap.Logger, l LagoonDBService,
-	k KeycloakService, natsURL string) error {
-	// setup synchronisation
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	// connect to NATS server
-	nc, err := nats.Connect(natsURL,
-		// synchronise exiting ServeNATS()
-		nats.ClosedHandler(func(_ *nats.Conn) {
-			wg.Done()
-		}))
-	if err != nil {
-		return fmt.Errorf("couldn't connect to NATS server: %v", err)
-	}
-	c, err := nats.NewEncodedConn(nc, "json")
-	if err != nil {
-		return fmt.Errorf("couldn't get encoded conn: %v", err)
-	}
-	defer c.Close()
-	// set up request/response callback
-	_, err = c.QueueSubscribe(subject, queue, sshportal(ctx, log, c, l, k))
-	if err != nil {
-		return fmt.Errorf("couldn't subscribe to queue: %v", err)
-	}
-	// wait for context cancellation
-	<-ctx.Done()
-	// drain and log errors
-	if err := c.Drain(); err != nil {
-		log.Error("couldn't drain connection", zap.Error(err))
-	}
-	// wait for connection to close
-	wg.Wait()
-	return nil
 }

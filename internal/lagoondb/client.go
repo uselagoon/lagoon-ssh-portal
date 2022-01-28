@@ -14,14 +14,6 @@ import (
 
 const pkgName = "github.com/uselagoon/ssh-portal/internal/lagoondb"
 
-// SSHAccessQuery defines the structure of an SSH access query.
-type SSHAccessQuery struct {
-	SSHFingerprint string
-	NamespaceName  string
-	ProjectID      int
-	EnvironmentID  int
-}
-
 // Client is a Lagoon API-DB client
 type Client struct {
 	db *sqlx.DB
