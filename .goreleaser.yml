@@ -1,5 +1,6 @@
 builds:
-- dir: cmd/service-api
+- id: service-api
+  dir: cmd/service-api
   binary: service-api
   ldflags:
   - >
@@ -7,3 +8,18 @@ builds:
     -X main.shortCommit={{.ShortCommit}} -X main.version={{.Version}}
   env:
   - CGO_ENABLED=0
+  goarch:
+  - amd64
+  - arm64
+- id: ssh-portal
+  dir: cmd/ssh-portal
+  binary: ssh-portal
+  ldflags:
+  - >
+    -s -w -X main.date={{.Date}} -X "main.goVersion={{.Env.GOVERSION}}"
+    -X main.shortCommit={{.ShortCommit}} -X main.version={{.Version}}
+  env:
+  - CGO_ENABLED=0
+  goarch:
+  - amd64
+  - arm64

@@ -2,7 +2,6 @@ package sshportal
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
@@ -27,7 +26,12 @@ func sessionHandler(log *zap.Logger, c *k8s.Client) ssh.Handler {
 			log.Warn("couldn't execute command",
 				zap.String("session-id", sid),
 				zap.Error(err))
-			io.WriteString(s, fmt.Sprintf("couldn't execute command. SID: %s\n", sid))
+			_, err = fmt.Fprintf(s, "couldn't execute command. SID: %s\n", sid)
+			if err != nil {
+				log.Warn("couldn't send error to client",
+					zap.String("session-id", sid),
+					zap.Error(err))
+			}
 		}
 		log.Debug("finished command exec",
 			zap.String("session-id", sid))
