@@ -18,8 +18,8 @@ import (
 
 var (
 	timeout            = 8 * time.Second
-	projectIDLabel     = "lagoon.sh/project"
-	environmentIDLabel = "lagoon.sh/environment"
+	projectIDLabel     = "lagoon.sh/projectId"
+	environmentIDLabel = "lagoon.sh/environmentId"
 )
 
 // Client is a k8s client.
