@@ -9,7 +9,7 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/signalctx"
-	"github.com/uselagoon/ssh-portal/internal/sshportal"
+	"github.com/uselagoon/ssh-portal/internal/sshserver"
 	"go.uber.org/zap"
 )
 
@@ -46,5 +46,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't create k8s client: %v", err)
 	}
 	// start serving SSH connection requests
-	return sshportal.Serve(ctx, log, nc, l, c)
+	return sshserver.Serve(ctx, log, nc, l, c)
 }
