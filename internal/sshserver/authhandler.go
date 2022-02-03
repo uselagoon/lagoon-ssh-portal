@@ -1,4 +1,4 @@
-package sshportal
+package sshserver
 
 import (
 	"bytes"
