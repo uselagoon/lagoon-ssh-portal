@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	"github.com/moby/spdystream"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +24,8 @@ func main() {
 	var err error
 	if cli.Debug {
 		log, err = zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel))
+		// work around https://github.com/moby/spdystream/issues/87
+		spdystream.DEBUG = ""
 	} else {
 		log, err = zap.NewProduction()
 	}
