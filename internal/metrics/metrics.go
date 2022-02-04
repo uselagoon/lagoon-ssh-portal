@@ -11,11 +11,11 @@ import (
 // NewServer returns a *http.Server serving prometheus metrics in a new
 // goroutine.
 // Caller should defer Shutdown() for cleanup.
-func NewServer(log *zap.Logger) *http.Server {
+func NewServer(log *zap.Logger, addr string) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	s := http.Server{
-		Addr:         ":9911",
+		Addr:         addr,
 		Handler:      mux,
 		ReadTimeout:  16 * time.Second,
 		WriteTimeout: 16 * time.Second,

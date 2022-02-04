@@ -7,6 +7,8 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/serviceapi"
 	"go.uber.org/zap"
@@ -17,11 +19,23 @@ var (
 	natsTimeout = 8 * time.Second
 )
 
+var (
+	authAttemptsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "authentication_attempts_total",
+		Help: "The total number of authentication attempts",
+	})
+	authSuccessTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "authentication_success_total",
+		Help: "The total number of successful authentication",
+	})
+)
+
 // pubKeyAuth returns a ssh.PublicKeyHandler which accepts any key, and simply
 // adds the given key to the connection context.
 func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 	c *k8s.Client) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
+		authAttemptsTotal.Inc()
 		// parse SSH public key
 		pubKey, err := gossh.ParsePublicKey(key.Marshal())
 		if err != nil {
@@ -33,7 +47,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 		// get Lagoon labels from namespace if available
 		pid, eid, err := c.NamespaceDetails(ctx.User())
 		if err != nil {
-			log.Info("couldn't get namespace details",
+			log.Debug("couldn't get namespace details",
 				zap.String("session-id", ctx.SessionID()),
 				zap.String("namespace", ctx.User()), zap.Error(err))
 			return false
@@ -62,6 +76,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 		}
 		// handle response
 		if bytes.Equal(response.Data, []byte("true")) {
+			authSuccessTotal.Inc()
 			log.Debug("authentication successful",
 				zap.String("session-id", ctx.SessionID()),
 				zap.String("fingerprint", fingerprint),
