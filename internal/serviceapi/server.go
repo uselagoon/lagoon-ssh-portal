@@ -7,8 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"go.uber.org/zap"
 )
@@ -16,13 +14,6 @@ import (
 const (
 	queue   = "serviceapi"
 	pkgName = "github.com/uselagoon/ssh-portal/internal/serviceapi"
-)
-
-var (
-	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "serviceapi_requests_total",
-		Help: "The total number of requests received",
-	})
 )
 
 // LagoonDBService provides methods for querying the Lagoon API DB.

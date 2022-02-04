@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/permission"
 	"go.opentelemetry.io/otel"
@@ -23,6 +25,13 @@ type SSHAccessQuery struct {
 	ProjectID      int
 	EnvironmentID  int
 }
+
+var (
+	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "serviceapi_requests_total",
+		Help: "The total number of requests received",
+	})
+)
 
 func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 	l LagoonDBService, k KeycloakService) nats.Handler {

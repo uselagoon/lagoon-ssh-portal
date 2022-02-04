@@ -31,7 +31,7 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// will exit immediately if the context is already done.
 	ictx := context.Background()
 	// init metrics
-	m := metrics.NewServer(log)
+	m := metrics.NewServer(log, ":9911")
 	defer m.Shutdown(ictx) //nolint:errcheck
 	// get main process context
 	ctx, cancel := signalctx.GetContext()
