@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-var (
+const (
 	timeout            = 90 * time.Second
 	projectIDLabel     = "lagoon.sh/projectId"
 	environmentIDLabel = "lagoon.sh/environmentId"
@@ -140,20 +140,29 @@ func (c *Client) ensureScaled(ctx context.Context, deployment, namespace string)
 		c.hasRunningPod(ctx, deployment, namespace))
 }
 
-// Exec joins the given streams to the command or, if command is empty, to a
-// shell running in the given pod.
-func (c *Client) Exec(ctx context.Context, deployment, namespace string,
-	command []string, stdio io.ReadWriter, stderr io.Writer, tty bool) error {
+// getExecutor prepares the environment by ensuring pods are scaled etc. and
+// returns an executor object.
+func (c *Client) getExecutor(ctx context.Context, deployment, namespace string,
+	command []string, stdio io.ReadWriter, stderr io.Writer, tty bool) (remotecommand.Executor, error) {
+	// If there's a tty, then animate a spinner if this function takes too long
+	// to return.
+	// Defer context cancel() after wg.Wait() because we need the context to
+	// cancel first in order to shortcut spinAfter() and avoid a spinner if shell
+	// acquisition is fast enough.
 	ctx, cancel := context.WithTimeout(ctx, timeout)
+	if tty {
+		wg := spinAfter(ctx, stderr, 2*time.Second)
+		defer wg.Wait()
+	}
 	defer cancel()
 	// ensure the deployment has at least one replica
 	if err := c.ensureScaled(ctx, deployment, namespace); err != nil {
-		return fmt.Errorf("couldn't scale deployment: %v", err)
+		return nil, fmt.Errorf("couldn't scale deployment: %v", err)
 	}
 	// get the name of the first pod in the deployment
 	podName, err := c.podName(ctx, deployment, namespace)
 	if err != nil {
-		return fmt.Errorf("couldn't get pod name: %v", err)
+		return nil, fmt.Errorf("couldn't get pod name: %v", err)
 	}
 	// check the command. if there isn't one, give the user a shell.
 	if len(command) == 0 {
@@ -173,9 +182,17 @@ func (c *Client) Exec(ctx context.Context, deployment, namespace string,
 		scheme.ParameterCodec,
 	)
 	// construct the executor
-	exec, err := remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+	return remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+}
+
+// Exec joins the given streams to the command or, if command is empty, to a
+// shell running in the given pod.
+func (c *Client) Exec(ctx context.Context, deployment, namespace string,
+	command []string, stdio io.ReadWriter, stderr io.Writer, tty bool) error {
+	exec, err := c.getExecutor(ctx, deployment, namespace, command, stdio,
+		stderr, tty)
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't get executor: %v", err)
 	}
 	// execute the command
 	return exec.Stream(remotecommand.StreamOptions{
