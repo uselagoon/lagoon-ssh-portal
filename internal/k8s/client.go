@@ -10,6 +10,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -94,6 +95,27 @@ func (c *Client) podName(ctx context.Context, deployment,
 	return pods.Items[0].Name, nil
 }
 
+func (c *Client) hasRunningPod(ctx context.Context,
+	deployment, namespace string) wait.ConditionWithContextFunc {
+	return func(context.Context) (bool, error) {
+		d, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, deployment,
+			metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
+		})
+		if err != nil {
+			return false, err
+		}
+		if len(pods.Items) == 0 {
+			return false, nil
+		}
+		return pods.Items[0].Status.Phase == "Running", nil
+	}
+}
+
 func (c *Client) ensureScaled(ctx context.Context, deployment, namespace string) error {
 	// get current scale
 	s, err := c.clientset.AppsV1().Deployments(namespace).
@@ -113,7 +135,9 @@ func (c *Client) ensureScaled(ctx context.Context, deployment, namespace string)
 	if err != nil {
 		return fmt.Errorf("couldn't scale deployment: %v", err)
 	}
-	return nil
+	// wait for a pod to start running
+	return wait.PollImmediateWithContext(ctx, time.Second, timeout,
+		c.hasRunningPod(ctx, deployment, namespace))
 }
 
 // Exec joins the given streams to the command or, if command is empty, to a
