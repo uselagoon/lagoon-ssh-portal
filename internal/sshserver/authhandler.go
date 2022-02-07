@@ -45,7 +45,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 			return false
 		}
 		// get Lagoon labels from namespace if available
-		pid, eid, err := c.NamespaceDetails(ctx.User())
+		pid, eid, err := c.NamespaceDetails(ctx, ctx.User())
 		if err != nil {
 			log.Debug("couldn't get namespace details",
 				zap.String("session-id", ctx.SessionID()),
@@ -67,7 +67,8 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 			return false
 		}
 		// send query
-		response, err := nc.Request(serviceapi.SubjectSSHAccessQuery, data, natsTimeout)
+		response, err := nc.Request(serviceapi.SubjectSSHAccessQuery, data,
+			natsTimeout)
 		if err != nil {
 			log.Warn("couldn't make NATS request",
 				zap.String("session-id", ctx.SessionID()),

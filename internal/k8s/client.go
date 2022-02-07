@@ -10,6 +10,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -17,7 +18,7 @@ import (
 )
 
 var (
-	timeout            = 8 * time.Second
+	timeout            = 90 * time.Second
 	projectIDLabel     = "lagoon.sh/projectId"
 	environmentIDLabel = "lagoon.sh/environmentId"
 )
@@ -58,9 +59,9 @@ func intFromLabel(labels map[string]string, label string) (int, error) {
 // NamespaceDetails gets the details for a Lagoon namespace.
 // It performs some sanity checks to validate that the namespace is actually a
 // Lagoon namespace.
-func (c *Client) NamespaceDetails(name string) (int, int, error) {
+func (c *Client) NamespaceDetails(ctx context.Context, name string) (int, int, error) {
 	var pid, eid int
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	ns, err := c.clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -94,10 +95,61 @@ func (c *Client) podName(ctx context.Context, deployment,
 	return pods.Items[0].Name, nil
 }
 
+func (c *Client) hasRunningPod(ctx context.Context,
+	deployment, namespace string) wait.ConditionWithContextFunc {
+	return func(context.Context) (bool, error) {
+		d, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, deployment,
+			metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
+		})
+		if err != nil {
+			return false, err
+		}
+		if len(pods.Items) == 0 {
+			return false, nil
+		}
+		return pods.Items[0].Status.Phase == "Running", nil
+	}
+}
+
+func (c *Client) ensureScaled(ctx context.Context, deployment, namespace string) error {
+	// get current scale
+	s, err := c.clientset.AppsV1().Deployments(namespace).
+		GetScale(ctx, deployment, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("couldn't get deployment scale: %v", err)
+	}
+	// exit early if no change required
+	if s.Spec.Replicas > 0 {
+		return nil
+	}
+	// scale up the deployment
+	sc := *s
+	sc.Spec.Replicas = 1
+	_, err = c.clientset.AppsV1().Deployments(namespace).
+		UpdateScale(ctx, deployment, &sc, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("couldn't scale deployment: %v", err)
+	}
+	// wait for a pod to start running
+	return wait.PollImmediateWithContext(ctx, time.Second, timeout,
+		c.hasRunningPod(ctx, deployment, namespace))
+}
+
 // Exec joins the given streams to the command or, if command is empty, to a
 // shell running in the given pod.
 func (c *Client) Exec(ctx context.Context, deployment, namespace string,
 	command []string, stdio io.ReadWriter, stderr io.Writer, tty bool) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	// ensure the deployment has at least one replica
+	if err := c.ensureScaled(ctx, deployment, namespace); err != nil {
+		return fmt.Errorf("couldn't scale deployment: %v", err)
+	}
 	// get the name of the first pod in the deployment
 	podName, err := c.podName(ctx, deployment, namespace)
 	if err != nil {
