@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os/signal"
+	"syscall"
 
 	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
-	"github.com/uselagoon/ssh-portal/internal/signalctx"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
 	"go.uber.org/zap"
 )
@@ -30,9 +31,9 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// init metrics
 	m := metrics.NewServer(log, ":9912")
 	defer m.Shutdown(ictx) //nolint:errcheck
-	// get main process context
-	ctx, cancel := signalctx.GetContext()
-	defer cancel()
+	// get main process context, which cancels on SIGTERM
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer stop()
 	// get nats server connection
 	nc, err := nats.Connect(cmd.NATSServer)
 	if err != nil {
