@@ -22,7 +22,9 @@ type ServeCmd struct {
 	KeycloakBaseURL      string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
-	NATSServer           string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
+	NATSURL              string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
+	NATSUsername         string `kong:"default='service-api',env='NATS_USERNAME',help='NATS Username'"`
+	NATSPassword         string `kong:"default='service-api',env='NATS_PASSWORD',help='NATS Password'"`
 }
 
 // Run the serve command to service API requests.
@@ -54,5 +56,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSServer)
+	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSURL, cmd.NATSUsername, cmd.NATSPassword)
 }
