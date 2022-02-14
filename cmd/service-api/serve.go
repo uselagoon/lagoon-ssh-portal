@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/serviceapi"
-	"github.com/uselagoon/ssh-portal/internal/signalctx"
 	"go.uber.org/zap"
 )
 
@@ -35,9 +36,9 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// init metrics
 	m := metrics.NewServer(log, ":9911")
 	defer m.Shutdown(ictx) //nolint:errcheck
-	// get main process context
-	ctx, cancel := signalctx.GetContext()
-	defer cancel()
+	// get main process context, which cancels on SIGTERM
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer stop()
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
 	dbConf.Addr = cmd.APIDBAddress
@@ -56,5 +57,6 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSURL, cmd.NATSUsername, cmd.NATSPassword)
+	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSURL, cmd.NATSUsername,
+		cmd.NATSPassword)
 }
