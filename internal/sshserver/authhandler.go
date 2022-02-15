@@ -59,6 +59,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 			NamespaceName:  ctx.User(),
 			ProjectID:      pid,
 			EnvironmentID:  eid,
+			SessionID:      ctx.SessionID(),
 		})
 		if err != nil {
 			log.Warn("couldn't marshal SSHAccessQuery",

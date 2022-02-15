@@ -24,6 +24,7 @@ type SSHAccessQuery struct {
 	NamespaceName  string
 	ProjectID      int
 	EnvironmentID  int
+	SessionID      string
 }
 
 var (
