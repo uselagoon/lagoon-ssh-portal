@@ -8,16 +8,18 @@ This is an experimental cluster-local SSH service for [Lagoon](https://github.co
 
 ## Architecture
 
-This git repository comprises two services: `service-api`, and `ssh-portal`.
+The Lagoon SSH portal is implemented as a pair of services: `service-api`, and `ssh-portal`.
 These two services communicate over a backend messaging system.
 Currently the message system used is [NATS](https://nats.io/).
 
+There may be many instances of `ssh-portal` in many remote clusters communicating back to the `service-api`.
+
 ### Service API
 
-`service-api` is part of Lagoon Core, and serves requests from other Lagoon components such as the SSH portal, which may be in a remote cluster.
+`service-api` is part of Lagoon Core, and serves requests from the `ssh-portal` service, which may be in a remote cluster.
 
 `service-api` is explicitly _not_ a public API and makes no guarantees about compatiblity.
-It is _only_ designed to cater to the requirements of other internal Lagoon services.
+It is _only_ designed to cater to the requirements of `ssh-portal`, and potentially other internal Lagoon services in future.
 
 ### SSH Portal
 
