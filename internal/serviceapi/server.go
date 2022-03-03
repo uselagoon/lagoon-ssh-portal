@@ -28,8 +28,9 @@ type KeycloakService interface {
 }
 
 // ServeNATS serviceapi NATS requests.
-func ServeNATS(ctx context.Context, log *zap.Logger, l LagoonDBService,
-	k KeycloakService, natsURL, natsUser, natsPass string) error {
+func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
+	l LagoonDBService, k KeycloakService, natsURL, natsUser,
+	natsPass string) error {
 	// setup synchronisation
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -37,6 +38,7 @@ func ServeNATS(ctx context.Context, log *zap.Logger, l LagoonDBService,
 	nc, err := nats.Connect(natsURL,
 		// synchronise exiting ServeNATS()
 		nats.ClosedHandler(func(_ *nats.Conn) {
+			stop()
 			wg.Done()
 		}),
 		// pass credentials
@@ -58,7 +60,7 @@ func ServeNATS(ctx context.Context, log *zap.Logger, l LagoonDBService,
 	<-ctx.Done()
 	// drain and log errors
 	if err := c.Drain(); err != nil {
-		log.Error("couldn't drain connection", zap.Error(err))
+		log.Warn("couldn't drain connection", zap.Error(err))
 	}
 	// wait for connection to close
 	wg.Wait()

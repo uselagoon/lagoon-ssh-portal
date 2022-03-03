@@ -57,6 +57,6 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return serviceapi.ServeNATS(ctx, log, l, k, cmd.NATSURL, cmd.NATSUsername,
-		cmd.NATSPassword)
+	return serviceapi.ServeNATS(ctx, stop, log, l, k, cmd.NATSURL,
+		cmd.NATSUsername, cmd.NATSPassword)
 }
