@@ -35,7 +35,11 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
 	// get nats server connection
-	nc, err := nats.Connect(cmd.NATSServer)
+	nc, err := nats.Connect(cmd.NATSServer,
+		// exit on connection close
+		nats.ClosedHandler(func(_ *nats.Conn) {
+			stop()
+		}))
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
 	}
