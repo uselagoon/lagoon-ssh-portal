@@ -29,3 +29,10 @@ To perform authentication it communicates back to `service-api` running in Lagoo
 `ssh-portal` implements shell access with service and container selection [as described in the Lagoon documentation](https://docs.lagoon.sh/using-lagoon-advanced/ssh/#ssh-into-a-pod), but it does not implement token generation.
 
 Unlike the existing Lagoon SSH service, `ssh-portal` _only_ provides access to Lagoon environments running in the local cluster.
+
+## Administration and Troubleshooting
+
+If a user gets an error from `ssh-portal` it may not contain much detail for security reasons.
+However it _will_ contain a Session ID (SID).
+The SID is logged by the `ssh-portal`, and is also passed to the `service-api` and logged there too.
+This helps to correlate error messages in `ssh-portal` and `service-api` logs with user connection errors.
