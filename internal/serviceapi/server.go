@@ -60,7 +60,7 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	<-ctx.Done()
 	// drain and log errors
 	if err := c.Drain(); err != nil {
-		log.Error("couldn't drain connection", zap.Error(err))
+		log.Warn("couldn't drain connection", zap.Error(err))
 	}
 	// wait for connection to close
 	wg.Wait()
