@@ -44,6 +44,8 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 		// pass credentials
 		nats.UserInfo(natsUser, natsPass))
 	if err != nil {
+		log.Debug("NATS connect error", zap.Error(err),
+			zap.String("user", natsUser), zap.String("pass", natsPass))
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
 	}
 	c, err := nats.NewEncodedConn(nc, "json")
