@@ -23,7 +23,7 @@ type ServeCmd struct {
 	HostKeyRSA     string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
 }
 
-// Run the serve command to service API requests.
+// Run the serve command to handle SSH connection requests.
 func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// instrumentation requires a separate context because deferred Shutdown()
 	// will exit immediately if the context is already done.

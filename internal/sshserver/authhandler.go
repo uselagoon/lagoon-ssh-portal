@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
-	"github.com/uselagoon/ssh-portal/internal/serviceapi"
+	"github.com/uselagoon/ssh-portal/internal/sshportalapi"
 	"go.uber.org/zap"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -54,7 +54,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 		}
 		// construct and marshal ssh access query
 		fingerprint := gossh.FingerprintSHA256(pubKey)
-		data, err := json.Marshal(&serviceapi.SSHAccessQuery{
+		data, err := json.Marshal(&sshportalapi.SSHAccessQuery{
 			SSHFingerprint: fingerprint,
 			NamespaceName:  ctx.User(),
 			ProjectID:      pid,
@@ -68,7 +68,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 			return false
 		}
 		// send query
-		response, err := nc.Request(serviceapi.SubjectSSHAccessQuery, data,
+		response, err := nc.Request(sshportalapi.SubjectSSHAccessQuery, data,
 			natsTimeout)
 		if err != nil {
 			log.Warn("couldn't make NATS request",

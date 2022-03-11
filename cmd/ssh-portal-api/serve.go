@@ -10,7 +10,7 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
-	"github.com/uselagoon/ssh-portal/internal/serviceapi"
+	"github.com/uselagoon/ssh-portal/internal/sshportalapi"
 	"go.uber.org/zap"
 )
 
@@ -24,11 +24,11 @@ type ServeCmd struct {
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
 	NATSURL              string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
-	NATSUsername         string `kong:"default='service-api',env='NATS_USERNAME',help='NATS Username'"`
-	NATSPassword         string `kong:"default='service-api',env='NATS_PASSWORD',help='NATS Password'"`
+	NATSUsername         string `kong:"default='ssh-portal-api',env='NATS_USERNAME',help='NATS Username'"`
+	NATSPassword         string `kong:"default='ssh-portal-api',env='NATS_PASSWORD',help='NATS Password'"`
 }
 
-// Run the serve command to service API requests.
+// Run the serve command to ssh-portal API requests.
 func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// instrumentation requires a separate context because deferred Shutdown()
 	// will exit immediately if the context is already done.
@@ -57,6 +57,6 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return serviceapi.ServeNATS(ctx, stop, log, l, k, cmd.NATSURL,
+	return sshportalapi.ServeNATS(ctx, stop, log, l, k, cmd.NATSURL,
 		cmd.NATSUsername, cmd.NATSPassword)
 }

@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         binary:
-        - service-api
+        - ssh-portal-api
         - ssh-portal
     needs: build
     runs-on: ubuntu-latest

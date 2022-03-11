@@ -8,7 +8,7 @@ import (
 // CLI represents the command-line interface.
 type CLI struct {
 	Debug   bool       `kong:"env='DEBUG',help='Enable debug logging'"`
-	Serve   ServeCmd   `kong:"cmd,default=1,help='(default) Serve service-api requests'"`
+	Serve   ServeCmd   `kong:"cmd,default=1,help='(default) Serve ssh-portal-api requests'"`
 	Version VersionCmd `kong:"cmd,help='Print version information'"`
 }
 

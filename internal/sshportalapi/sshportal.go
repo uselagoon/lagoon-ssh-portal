@@ -1,4 +1,4 @@
-package serviceapi
+package sshportalapi
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 
 const (
 	// SubjectSSHAccessQuery defines the NATS subject for SSH access queries.
-	SubjectSSHAccessQuery = "lagoon.serviceapi.sshportal"
+	SubjectSSHAccessQuery = "lagoon.sshportal.api"
 )
 
 // SSHAccessQuery defines the structure of an SSH access query.
@@ -29,7 +29,7 @@ type SSHAccessQuery struct {
 
 var (
 	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "serviceapi_requests_total",
+		Name: "sshportalapi_requests_total",
 		Help: "The total number of requests received",
 	})
 )

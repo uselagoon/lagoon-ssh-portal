@@ -1,4 +1,4 @@
-package serviceapi
+package sshportalapi
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	queue   = "serviceapi"
-	pkgName = "github.com/uselagoon/ssh-portal/internal/serviceapi"
+	queue   = "sshportalapi"
+	pkgName = "github.com/uselagoon/ssh-portal/internal/sshportalapi"
 )
 
 // LagoonDBService provides methods for querying the Lagoon API DB.
@@ -27,7 +27,7 @@ type KeycloakService interface {
 	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, map[string][]int, error)
 }
 
-// ServeNATS serviceapi NATS requests.
+// ServeNATS sshportalapi NATS requests.
 func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	l LagoonDBService, k KeycloakService, natsURL, natsUser,
 	natsPass string) error {

@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix:
         binary:
-        - service-api
+        - ssh-portal-api
         - ssh-portal
     needs:
     - tag
