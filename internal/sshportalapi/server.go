@@ -29,8 +29,7 @@ type KeycloakService interface {
 
 // ServeNATS sshportalapi NATS requests.
 func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
-	l LagoonDBService, k KeycloakService, natsURL, natsUser,
-	natsPass string) error {
+	l LagoonDBService, k KeycloakService, natsURL string) error {
 	// setup synchronisation
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -40,12 +39,8 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			stop()
 			wg.Done()
-		}),
-		// pass credentials
-		nats.UserInfo(natsUser, natsPass))
+		}))
 	if err != nil {
-		log.Debug("NATS connect error", zap.Error(err),
-			zap.String("user", natsUser), zap.String("pass", natsPass))
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
 	}
 	c, err := nats.NewEncodedConn(nc, "json")
