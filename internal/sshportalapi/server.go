@@ -37,8 +37,15 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	nc, err := nats.Connect(natsURL,
 		// synchronise exiting ServeNATS()
 		nats.ClosedHandler(func(_ *nats.Conn) {
+			log.Error("nats connection closed")
 			stop()
 			wg.Done()
+		}),
+		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+			log.Warn("nats disconnected", zap.Error(err))
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			log.Info("nats reconnected", zap.String("url", nc.ConnectedUrl()))
 		}))
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)

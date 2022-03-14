@@ -38,7 +38,14 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	nc, err := nats.Connect(cmd.NATSServer,
 		// exit on connection close
 		nats.ClosedHandler(func(_ *nats.Conn) {
+			log.Error("nats connection closed")
 			stop()
+		}),
+		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+			log.Warn("nats disconnected", zap.Error(err))
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			log.Info("nats reconnected", zap.String("url", nc.ConnectedUrl()))
 		}))
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
