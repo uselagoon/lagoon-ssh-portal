@@ -34,7 +34,7 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	// connect to NATS server
-	nc, err := nats.Connect(natsURL,
+	nconn, err := nats.Connect(natsURL,
 		// synchronise exiting ServeNATS()
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			log.Error("nats connection closed")
@@ -50,20 +50,21 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
 	}
-	c, err := nats.NewEncodedConn(nc, "json")
+	nc, err := nats.NewEncodedConn(nconn, "json")
 	if err != nil {
 		return fmt.Errorf("couldn't get encoded conn: %v", err)
 	}
-	defer c.Close()
+	defer nc.Close()
 	// set up request/response callback for sshportal
-	_, err = c.QueueSubscribe(SubjectSSHAccessQuery, queue, sshportal(ctx, log, c, l, k))
+	_, err = nc.QueueSubscribe(SubjectSSHAccessQuery, queue,
+		sshportal(ctx, log, nc, l, k))
 	if err != nil {
 		return fmt.Errorf("couldn't subscribe to queue: %v", err)
 	}
 	// wait for context cancellation
 	<-ctx.Done()
 	// drain and log errors
-	if err := c.Drain(); err != nil {
+	if err := nc.Drain(); err != nil {
 		log.Warn("couldn't drain connection", zap.Error(err))
 	}
 	// wait for connection to close
