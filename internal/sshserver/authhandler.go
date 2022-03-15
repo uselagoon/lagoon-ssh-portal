@@ -1,8 +1,6 @@
 package sshserver
 
 import (
-	"bytes"
-	"encoding/json"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -32,7 +30,7 @@ var (
 
 // pubKeyAuth returns a ssh.PublicKeyHandler which accepts any key, and simply
 // adds the given key to the connection context.
-func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
+func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 	c *k8s.Client) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		authAttemptsTotal.Inc()
@@ -52,23 +50,18 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 				zap.String("namespace", ctx.User()), zap.Error(err))
 			return false
 		}
-		// construct and marshal ssh access query
+		// construct ssh access query
 		fingerprint := gossh.FingerprintSHA256(pubKey)
-		data, err := json.Marshal(&sshportalapi.SSHAccessQuery{
+		q := sshportalapi.SSHAccessQuery{
 			SSHFingerprint: fingerprint,
 			NamespaceName:  ctx.User(),
 			ProjectID:      pid,
 			EnvironmentID:  eid,
 			SessionID:      ctx.SessionID(),
-		})
-		if err != nil {
-			log.Warn("couldn't marshal SSHAccessQuery",
-				zap.String("session-id", ctx.SessionID()),
-				zap.Error(err))
-			return false
 		}
 		// send query
-		response, err := nc.Request(sshportalapi.SubjectSSHAccessQuery, data,
+		var response bool
+		err = nc.Request(sshportalapi.SubjectSSHAccessQuery, q, &response,
 			natsTimeout)
 		if err != nil {
 			log.Warn("couldn't make NATS request",
@@ -77,7 +70,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.Conn,
 			return false
 		}
 		// handle response
-		if bytes.Equal(response.Data, []byte("true")) {
+		if response {
 			authSuccessTotal.Inc()
 			log.Debug("authentication successful",
 				zap.String("session-id", ctx.SessionID()),
