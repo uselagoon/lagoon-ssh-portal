@@ -35,6 +35,7 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	wg.Add(1)
 	// connect to NATS server
 	nconn, err := nats.Connect(natsURL,
+		nats.Name("ssh-portal-api"),
 		// synchronise exiting ServeNATS()
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			log.Error("nats connection closed")

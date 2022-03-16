@@ -36,6 +36,7 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	defer stop()
 	// get nats server connection
 	nconn, err := nats.Connect(cmd.NATSServer,
+		nats.Name("ssh-portal"),
 		// exit on connection close
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			log.Error("nats connection closed")
