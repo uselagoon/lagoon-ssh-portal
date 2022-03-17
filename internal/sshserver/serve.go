@@ -14,7 +14,7 @@ import (
 )
 
 // Serve contains the main ssh session logic
-func Serve(ctx context.Context, log *zap.Logger, nc *nats.Conn,
+func Serve(ctx context.Context, log *zap.Logger, nc *nats.EncodedConn,
 	l net.Listener, c *k8s.Client, hostKeys [][]byte) error {
 	srv := ssh.Server{
 		Handler:          sessionHandler(log, c),
