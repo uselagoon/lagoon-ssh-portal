@@ -27,6 +27,7 @@ jobs:
         name: dist.tar
         path: dist.tar
   buildimage:
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
     strategy:
       matrix:
         binary:
