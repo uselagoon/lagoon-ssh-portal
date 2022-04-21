@@ -16,8 +16,8 @@ require (
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 	gopkg.in/square/go-jose.v2 v2.6.0
-	k8s.io/api v0.23.5
-	k8s.io/apimachinery v0.23.5
+	k8s.io/api v0.23.6
+	k8s.io/apimachinery v0.23.6
 	k8s.io/client-go v0.23.5
 )
 
