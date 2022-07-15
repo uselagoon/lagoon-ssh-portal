@@ -92,7 +92,7 @@ jobs:
     - name: Docker metadata
       # this id is namespaced per matrix run
       id: docker_metadata
-      uses: docker/metadata-action@v3
+      uses: docker/metadata-action@v4
       with:
         images: ghcr.io/uselagoon/lagoon-ssh-portal/${{ matrix.binary }}
         tags: |
