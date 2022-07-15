@@ -10,7 +10,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.13.1-0.20211018182449-f2416a8b1483
-	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/client_golang v1.12.2
 	go.opentelemetry.io/otel v1.8.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
