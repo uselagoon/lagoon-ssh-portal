@@ -129,8 +129,7 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't get user token: %v", err)
 	}
-	c.log.Debug("got user token", zap.String("access token",
-		userToken.AccessToken))
+	c.log.Debug("got user token")
 	// parse and extract verified attributes
 	tok, err := jwt.ParseSigned(userToken.AccessToken)
 	if err != nil {
