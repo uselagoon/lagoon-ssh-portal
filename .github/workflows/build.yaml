@@ -64,4 +64,4 @@ jobs:
         tags: ${{ steps.docker_metadata.outputs.tags }}
         labels: ${{ steps.docker_metadata.outputs.labels }}
         file: deploy/${{ matrix.binary }}/Dockerfile
-        context: dist/${{ matrix.binary }}_linux_amd64
+        context: dist/${{ matrix.binary }}_linux_amd64_v1
