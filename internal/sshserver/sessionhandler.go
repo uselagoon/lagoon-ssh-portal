@@ -13,11 +13,19 @@ import (
 var (
 	sessionTotal = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "session_total",
-		Help: "The total number of ssh sessions",
+		Help: "The total number of ssh sessions started",
 	})
 )
 
-func sessionHandler(log *zap.Logger, c *k8s.Client) ssh.Handler {
+// sessionHandler returns a ssh.Handler which connects the ssh session to the
+// requested container.
+//
+// If sftp is true, the returned ssh.Handler can be type converted to a sftp
+// ssh.SubsystemHandler. The only practical difference in the returned session
+// handler is that the command is set to sftp-server. This implies that the
+// target container must have a sftp-server binary installed for sftp to work.
+// There is no support for a built-in sftp server.
+func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
 		sid, ok := s.Context().Value(ssh.ContextKeySessionID).(string)
@@ -25,15 +33,17 @@ func sessionHandler(log *zap.Logger, c *k8s.Client) ssh.Handler {
 			log.Warn("couldn't get session ID")
 			return
 		}
-		// check if a pty was requested
-		_, _, pty := s.Pty()
 		// start the command
 		log.Debug("starting command exec",
 			zap.String("session-id", sid),
 			zap.Strings("raw command", s.Command()),
+			zap.String("subsystem", s.Subsystem()),
 		)
 		// parse the command line arguments to extract any service or container args
 		service, container, cmd := parseConnectionParams(s.Command())
+		if sftp {
+			cmd = []string{"sftp-server"}
+		}
 		// validate the service and container
 		if err := k8s.ValidateLabelValue(service); err != nil {
 			log.Debug("invalid service name",
@@ -79,6 +89,8 @@ func sessionHandler(log *zap.Logger, c *k8s.Client) ssh.Handler {
 			}
 			return
 		}
+		// check if a pty was requested
+		_, _, pty := s.Pty()
 		log.Info("executing command",
 			zap.String("namespace", s.User()),
 			zap.String("deployment", deployment),
