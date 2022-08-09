@@ -42,7 +42,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		// parse the command line arguments to extract any service or container args
 		service, container, cmd := parseConnectionParams(s.Command())
 		if sftp {
-			cmd = []string{"sftp-server"}
+			cmd = []string{"sftp-server", "-u", "0002"}
 		}
 		// validate the service and container
 		if err := k8s.ValidateLabelValue(service); err != nil {
