@@ -18,7 +18,7 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0
 	k8s.io/api v0.24.4
 	k8s.io/apimachinery v0.24.4
-	k8s.io/client-go v0.24.3
+	k8s.io/client-go v0.24.4
 )
 
 require (
