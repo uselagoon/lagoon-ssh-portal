@@ -12,7 +12,7 @@ require (
 	github.com/nats-io/nats.go v1.13.1-0.20211018182449-f2416a8b1483
 	github.com/prometheus/client_golang v1.13.0
 	go.opentelemetry.io/otel v1.9.0
-	go.uber.org/zap v1.22.0
+	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 	gopkg.in/square/go-jose.v2 v2.6.0
