@@ -120,17 +120,15 @@ func (c *Client) ensureScaled(ctx context.Context, namespace, deployment string)
 	if err != nil {
 		return fmt.Errorf("couldn't get deployment scale: %v", err)
 	}
-	// exit early if no change required
-	if s.Spec.Replicas > 0 {
-		return nil
-	}
-	// scale up the deployment
-	sc := *s
-	sc.Spec.Replicas = 1
-	_, err = c.clientset.AppsV1().Deployments(namespace).
-		UpdateScale(ctx, deployment, &sc, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("couldn't scale deployment: %v", err)
+	// scale up the deployment if required
+	if s.Spec.Replicas == 0 {
+		sc := *s
+		sc.Spec.Replicas = 1
+		_, err = c.clientset.AppsV1().Deployments(namespace).
+			UpdateScale(ctx, deployment, &sc, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("couldn't scale deployment: %v", err)
+		}
 	}
 	// wait for a pod to start running
 	return wait.PollImmediateWithContext(ctx, time.Second, timeout,
