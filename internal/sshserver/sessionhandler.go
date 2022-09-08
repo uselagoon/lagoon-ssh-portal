@@ -35,8 +35,8 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		}
 		// start the command
 		log.Debug("starting command exec",
-			zap.String("session-id", sid),
-			zap.Strings("raw command", s.Command()),
+			zap.String("sessionID", sid),
+			zap.Strings("rawCommand", s.Command()),
 			zap.String("subsystem", s.Subsystem()),
 		)
 		// parse the command line arguments to extract any service or container args
@@ -48,13 +48,13 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		if err := k8s.ValidateLabelValue(service); err != nil {
 			log.Debug("invalid service name",
 				zap.String("service", service),
-				zap.String("session-id", sid),
+				zap.String("sessionID", sid),
 				zap.Error(err))
 			_, err = fmt.Fprintf(s.Stderr(), "invalid service name %s. SID: %s\r\n",
 				service, sid)
 			if err != nil {
 				log.Debug("couldn't write to session stream",
-					zap.String("session-id", sid),
+					zap.String("sessionID", sid),
 					zap.Error(err))
 			}
 			return
@@ -62,13 +62,13 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		if err := k8s.ValidateLabelValue(container); err != nil {
 			log.Debug("invalid container name",
 				zap.String("container", container),
-				zap.String("session-id", sid),
+				zap.String("sessionID", sid),
 				zap.Error(err))
 			_, err = fmt.Fprintf(s.Stderr(), "invalid container name %s. SID: %s\r\n",
 				container, sid)
 			if err != nil {
 				log.Debug("couldn't write to session stream",
-					zap.String("session-id", sid),
+					zap.String("sessionID", sid),
 					zap.Error(err))
 			}
 			return
@@ -78,42 +78,69 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		if err != nil {
 			log.Debug("couldn't find deployment for service",
 				zap.String("service", service),
-				zap.String("session-id", sid),
+				zap.String("sessionID", sid),
 				zap.Error(err))
 			_, err = fmt.Fprintf(s.Stderr(), "unknown service %s. SID: %s\r\n",
 				service, sid)
 			if err != nil {
 				log.Debug("couldn't write to session stream",
-					zap.String("session-id", sid),
+					zap.String("sessionID", sid),
 					zap.Error(err))
 			}
 			return
 		}
 		// check if a pty was requested
 		_, _, pty := s.Pty()
-		log.Info("executing command",
-			zap.String("namespace", s.User()),
-			zap.String("deployment", deployment),
-			zap.String("container", container),
-			zap.Strings("command", cmd),
+		// extract info passed through the context by the authhandler
+		ctx := s.Context()
+		eid, ok := ctx.Value(environmentIDKey).(int)
+		if !ok {
+			log.Warn("couldn't extract environment ID from session context")
+		}
+		ename, ok := ctx.Value(environmentNameKey).(string)
+		if !ok {
+			log.Warn("couldn't extract environment name from session context")
+		}
+		pid, ok := ctx.Value(projectIDKey).(int)
+		if !ok {
+			log.Warn("couldn't extract project ID from session context")
+		}
+		pname, ok := ctx.Value(projectNameKey).(string)
+		if !ok {
+			log.Warn("couldn't extract project name from session context")
+		}
+		fingerprint, ok := ctx.Value(sshFingerprint).(string)
+		if !ok {
+			log.Warn("couldn't extract SSH key fingerprint from session context")
+		}
+		log.Info("executing SSH command",
 			zap.Bool("pty", pty),
-			zap.String("session-id", sid),
+			zap.Int("environmentID", eid),
+			zap.Int("projectID", pid),
+			zap.String("SSHFingerprint", fingerprint),
+			zap.String("container", container),
+			zap.String("deployment", deployment),
+			zap.String("environmentName", ename),
+			zap.String("namespace", s.User()),
+			zap.String("projectName", pname),
+			zap.String("sessionID", sid),
+			zap.Strings("command", cmd),
 		)
 		err = c.Exec(s.Context(), s.User(), deployment, container, cmd, s,
 			s.Stderr(), pty)
 		if err != nil {
 			log.Warn("couldn't execute command",
-				zap.String("session-id", sid),
+				zap.String("sessionID", sid),
 				zap.Error(err))
 			_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
 				sid)
 			if err != nil {
 				log.Warn("couldn't send error to client",
-					zap.String("session-id", sid),
+					zap.String("sessionID", sid),
 					zap.Error(err))
 			}
 		}
 		log.Debug("finished command exec",
-			zap.String("session-id", sid))
+			zap.String("sessionID", sid))
 	}
 }

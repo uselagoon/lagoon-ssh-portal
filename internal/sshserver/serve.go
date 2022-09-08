@@ -1,3 +1,4 @@
+// Package sshserver is the SSH server component of the Lagoon ssh-portal.
 package sshserver
 
 import (

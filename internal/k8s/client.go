@@ -1,3 +1,5 @@
+// Package k8s wraps a Kubernetes API client with convenience methods for
+// Lagoon services.
 package k8s
 
 import (

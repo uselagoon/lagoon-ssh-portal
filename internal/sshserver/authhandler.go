@@ -13,6 +13,16 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
+type ctxKey int
+
+const (
+	environmentIDKey ctxKey = iota
+	environmentNameKey
+	projectIDKey
+	projectNameKey
+	sshFingerprint
+)
+
 var (
 	natsTimeout = 8 * time.Second
 )
@@ -38,15 +48,15 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 		pubKey, err := gossh.ParsePublicKey(key.Marshal())
 		if err != nil {
 			log.Warn("couldn't parse SSH public key",
-				zap.String("session-id", ctx.SessionID()),
+				zap.String("sessionID", ctx.SessionID()),
 				zap.Error(err))
 			return false
 		}
 		// get Lagoon labels from namespace if available
-		pid, eid, err := c.NamespaceDetails(ctx, ctx.User())
+		eid, pid, ename, pname, err := c.NamespaceDetails(ctx, ctx.User())
 		if err != nil {
 			log.Debug("couldn't get namespace details",
-				zap.String("session-id", ctx.SessionID()),
+				zap.String("sessionID", ctx.SessionID()),
 				zap.String("namespace", ctx.User()), zap.Error(err))
 			return false
 		}
@@ -65,15 +75,20 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 			natsTimeout)
 		if err != nil {
 			log.Warn("couldn't make NATS request",
-				zap.String("session-id", ctx.SessionID()),
+				zap.String("sessionID", ctx.SessionID()),
 				zap.Error(err))
 			return false
 		}
 		// handle response
 		if response {
 			authSuccessTotal.Inc()
+			ctx.SetValue(environmentIDKey, eid)
+			ctx.SetValue(environmentNameKey, ename)
+			ctx.SetValue(projectIDKey, pid)
+			ctx.SetValue(projectNameKey, pname)
+			ctx.SetValue(sshFingerprint, fingerprint)
 			log.Debug("authentication successful",
-				zap.String("session-id", ctx.SessionID()),
+				zap.String("sessionID", ctx.SessionID()),
 				zap.String("fingerprint", fingerprint),
 				zap.String("namespace", ctx.User()))
 			return true
