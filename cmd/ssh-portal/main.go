@@ -14,6 +14,8 @@ type CLI struct {
 }
 
 func main() {
+	// work around https://github.com/moby/spdystream/issues/87
+	spdystream.DEBUG = ""
 	// parse CLI config
 	cli := CLI{}
 	kctx := kong.Parse(&cli,
@@ -23,8 +25,6 @@ func main() {
 	var log *zap.Logger
 	if cli.Debug {
 		log = zap.Must(zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel)))
-		// work around https://github.com/moby/spdystream/issues/87
-		spdystream.DEBUG = ""
 	} else {
 		log = zap.Must(zap.NewProduction())
 	}
