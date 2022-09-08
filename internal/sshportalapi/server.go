@@ -1,3 +1,5 @@
+// Package sshportalapi implements the lagoon-core component of the ssh-portal
+// service.
 package sshportalapi
 
 import (

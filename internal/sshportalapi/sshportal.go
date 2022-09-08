@@ -57,7 +57,7 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				if err = c.Publish(replySubject, false); err != nil {
 					log.Error("couldn't publish reply",
 						zap.Any("query", query),
-						zap.Bool("reply value", false),
+						zap.Bool("reply", false),
 						zap.Error(err))
 				}
 				return
@@ -77,7 +77,7 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 			if err = c.Publish(replySubject, false); err != nil {
 				log.Error("couldn't publish reply",
 					zap.Any("query", query),
-					zap.Bool("reply value", false),
+					zap.Bool("reply", false),
 					zap.Error(err))
 			}
 			return
@@ -91,8 +91,8 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				if err = c.Publish(replySubject, false); err != nil {
 					log.Error("couldn't publish reply",
 						zap.Any("query", query),
-						zap.Bool("reply value", false),
-						zap.String("user UUID", user.UUID.String()),
+						zap.Bool("reply", false),
+						zap.String("userUUID", user.UUID.String()),
 						zap.Error(err))
 				}
 				return
@@ -107,23 +107,35 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 		if err != nil {
 			log.Error("couldn't query user roles and groups",
 				zap.Any("query", query),
-				zap.String("user UUID", user.UUID.String()),
+				zap.String("userUUID", user.UUID.String()),
 				zap.Error(err))
 			return
 		}
 		log.Debug("keycloak query response",
-			zap.Strings("realm roles", realmRoles),
-			zap.Strings("user groups", userGroups),
-			zap.Any("group project IDs", groupProjectIDs),
-			zap.String("user UUID", user.UUID.String()))
+			zap.Strings("realmRoles", realmRoles),
+			zap.Strings("userGroups", userGroups),
+			zap.Any("groupProjectIDs", groupProjectIDs),
+			zap.String("userUUID", user.UUID.String()))
 		// calculate permission
 		ok := permission.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
 			groupProjectIDs)
+		if ok {
+			log.Info("validated SSH access",
+				zap.Int("environmentID", env.ID),
+				zap.Int("projectID", env.ProjectID),
+				zap.String("SSHFingerprint", query.SSHFingerprint),
+				zap.String("environmentName", env.Name),
+				zap.String("namespace", query.NamespaceName),
+				zap.String("projectName", env.ProjectName),
+				zap.String("sessionID", query.SessionID),
+				zap.String("userUUID", user.UUID.String()),
+			)
+		}
 		if err = c.Publish(replySubject, ok); err != nil {
 			log.Error("couldn't publish reply",
 				zap.Any("query", query),
-				zap.Bool("reply value", ok),
-				zap.String("user UUID", user.UUID.String()),
+				zap.Bool("reply", ok),
+				zap.String("userUUID", user.UUID.String()),
 				zap.Error(err))
 		}
 	}
