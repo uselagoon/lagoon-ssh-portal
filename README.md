@@ -4,7 +4,7 @@
 [![Coverage](https://coveralls.io/repos/github/uselagoon/lagoon-ssh-portal/badge.svg?branch=main)](https://coveralls.io/github/uselagoon/lagoon-ssh-portal?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/uselagoon/lagoon-ssh-portal)](https://goreportcard.com/report/github.com/uselagoon/lagoon-ssh-portal)
 
-This is an experimental cluster-local SSH service for [Lagoon](https://github.com/uselagoon/lagoon).
+This is a cluster-local SSH service for [Lagoon](https://github.com/uselagoon/lagoon).
 
 ## Architecture
 
