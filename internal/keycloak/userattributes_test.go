@@ -2,30 +2,32 @@ package keycloak
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
+	"time"
+
+	"github.com/alecthomas/assert/v2"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 func TestUnmarshalUserAttributes(t *testing.T) {
 	var testCases = map[string]struct {
 		input  []byte
-		expect *userAttributes
+		expect *SSHAPIClaims
 	}{
 		"two groups": {
 			input: []byte(`{
 		"group_lagoon_project_ids": [
 			"{\"credentialtest-group1\":[1]}",
    		"{\"ci-group\":[3,4,5,6,7,8,9,10,11,12,17,14,16,20,21,24,19,23,31]}"]}`),
-			expect: &userAttributes{
-				regularAttributes: regularAttributes{
-					RealmRoles: nil,
-					UserGroups: nil,
-				},
+			expect: &SSHAPIClaims{
+				RealmRoles: nil,
+				UserGroups: nil,
 				GroupProjectIDs: map[string][]int{
 					"credentialtest-group1": {1},
 					"ci-group": {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 17, 14, 16, 20, 21, 24,
 						19, 23, 31},
 				},
+				RegisteredClaims: jwt.RegisteredClaims{},
 			},
 		},
 		"multiple attributes": {
@@ -73,39 +75,51 @@ func TestUnmarshalUserAttributes(t *testing.T) {
  				 ["{\"credentialtest-group1\":[1]}",
 					"{\"ci-group\":[3,4,5,6,7,8,9,10,11,12,17,14,16,20,21,24,19,23,31]}"]
 				}`),
-			expect: &userAttributes{
-				regularAttributes: regularAttributes{
-					RealmRoles: []string{
-						"owner",
-						"platform-owner",
-						"offline_access",
-						"guest",
-						"reporter",
-						"developer",
-						"uma_authorization",
-						"maintainer"},
-					UserGroups: []string{
-						"/ci-group/ci-group-owner",
-						"/credentialtest-group1/credentialtest-group1-owner"},
-				},
+			expect: &SSHAPIClaims{
+				RealmRoles: []string{
+					"owner",
+					"platform-owner",
+					"offline_access",
+					"guest",
+					"reporter",
+					"developer",
+					"uma_authorization",
+					"maintainer"},
+				UserGroups: []string{
+					"/ci-group/ci-group-owner",
+					"/credentialtest-group1/credentialtest-group1-owner"},
 				GroupProjectIDs: map[string][]int{
 					"credentialtest-group1": {1},
 					"ci-group": {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 17, 14, 16, 20, 21, 24,
 						19, 23, 31},
+				},
+				AuthorizedParty: "service-api",
+				RegisteredClaims: jwt.RegisteredClaims{
+					ID:       "ba279e79-4f38-43ae-83e7-fe461aad59d1",
+					Issuer:   "http://lagoon-core-keycloak:8080/auth/realms/lagoon",
+					Subject:  "91435afe-ba81-406b-9308-f80b79fae350",
+					Audience: jwt.ClaimStrings{"account"},
+					ExpiresAt: &jwt.NumericDate{
+						Time: time.Date(2021, time.November, 19, 12, 31, 28, 0, time.Local),
+					},
+					NotBefore: &jwt.NumericDate{
+						Time: time.Date(1970, time.January, 1, 8, 0, 0, 0, time.Local),
+					},
+					IssuedAt: &jwt.NumericDate{
+						Time: time.Date(2021, time.November, 19, 12, 26, 28, 0, time.Local),
+					},
 				},
 			},
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			var ua *userAttributes
-			err := json.Unmarshal(tc.input, &ua)
+			var sac *SSHAPIClaims
+			err := json.Unmarshal(tc.input, &sac)
 			if err != nil {
 				tt.Fatal(err)
 			}
-			if !reflect.DeepEqual(ua, tc.expect) {
-				tt.Fatalf("got: %v, expected %v", ua, tc.expect)
-			}
+			assert.Equal(tt, sac, tc.expect)
 		})
 	}
 }

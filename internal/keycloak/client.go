@@ -1,3 +1,5 @@
+// Package keycloak implements a client for keycloak which implements
+// Lagoon-specific queries.
 package keycloak
 
 import (
@@ -13,11 +15,11 @@ import (
 	"path"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 const pkgName = "github.com/uselagoon/ssh-portal/internal/keycloak"
@@ -131,14 +133,21 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 	}
 	c.log.Debug("got user token")
 	// parse and extract verified attributes
-	tok, err := jwt.ParseSigned(userToken.AccessToken)
+	tok, err := jwt.ParseWithClaims(userToken.AccessToken, &SSHAPIClaims{},
+		func(_ *jwt.Token) (any, error) { return c.jwtPubKey, nil })
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't parse verified access token: %v", err)
+		return nil, nil, nil, fmt.Errorf("couldn't parse user account token: %v", err)
 	}
-	var attr userAttributes
-	if err = tok.Claims(c.jwtPubKey, &attr); err != nil {
-		return nil, nil, nil,
-			fmt.Errorf("couldn't extract token claims: %v", err)
+	claims, ok := tok.Claims.(*SSHAPIClaims)
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("invalid token claims type: %T", tok.Claims)
 	}
-	return attr.RealmRoles, attr.UserGroups, attr.GroupProjectIDs, nil
+	// Sanity check the AuthorizedParty to confirm the token is for us.
+	// Keycloak adds this field for token-exchange operations.
+	// https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+	if claims.AuthorizedParty != "service-api" {
+		return nil, nil, nil, fmt.Errorf("invalid azp, expected service-api got %s",
+			claims.AuthorizedParty)
+	}
+	return claims.RealmRoles, claims.UserGroups, claims.GroupProjectIDs, nil
 }
