@@ -1,44 +1,44 @@
 package keycloak
 
-import "encoding/json"
+import (
+	"encoding/json"
 
-type regularAttributes struct {
-	RealmRoles []string `json:"realm_roles"`
-	UserGroups []string `json:"group_membership"`
-}
+	"github.com/golang-jwt/jwt/v4"
+)
 
-// attributes injected into the access token by keycloak
-type userAttributes struct {
-	regularAttributes
-	GroupProjectIDs map[string][]int
-}
+type groupProjectIDs map[string][]int
 
-type stringAttributes struct {
-	GroupPIDs []string `json:"group_lagoon_project_ids"`
-}
-
-func (u *userAttributes) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &u.regularAttributes); err != nil {
-		return err
-	}
+func (gpids *groupProjectIDs) UnmarshalJSON(data []byte) error {
 	// unmarshal the double-encoded group-pid attributes
-	var s stringAttributes
-	if err := json.Unmarshal(data, &s); err != nil {
+	var gpas []string
+	if err := json.Unmarshal(data, &gpas); err != nil {
 		return err
 	}
-	var gpaMaps []map[string][]int
-	for _, gpa := range s.GroupPIDs {
-		var gpaMap map[string][]int
-		if err := json.Unmarshal([]byte(gpa), &gpaMap); err != nil {
+	// convert the slice of encoded group-pid attributes into a slice of
+	// group-pid maps
+	var gpms []map[string][]int
+	for _, gpa := range gpas {
+		var gpm map[string][]int
+		if err := json.Unmarshal([]byte(gpa), &gpm); err != nil {
 			return err
 		}
-		gpaMaps = append(gpaMaps, gpaMap)
+		gpms = append(gpms, gpm)
 	}
-	u.GroupProjectIDs = map[string][]int{}
-	for _, gpaMap := range gpaMaps {
-		for k, v := range gpaMap {
-			u.GroupProjectIDs[k] = v
+	// flatten the slice of group-pid maps into a single map
+	*gpids = groupProjectIDs{}
+	for _, gpm := range gpms {
+		for k, v := range gpm {
+			(*gpids)[k] = v
 		}
 	}
 	return nil
+}
+
+// SSHAPIClaims contains the relevant claims for use by the SSH API service.
+type SSHAPIClaims struct {
+	RealmRoles      []string        `json:"realm_roles"`
+	UserGroups      []string        `json:"group_membership"`
+	GroupProjectIDs groupProjectIDs `json:"group_lagoon_project_ids"`
+	AuthorizedParty string          `json:"azp"`
+	jwt.RegisteredClaims
 }
