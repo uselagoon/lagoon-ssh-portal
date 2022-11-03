@@ -100,13 +100,13 @@ func TestUnmarshalUserAttributes(t *testing.T) {
 					Subject:  "91435afe-ba81-406b-9308-f80b79fae350",
 					Audience: jwt.ClaimStrings{"account"},
 					ExpiresAt: &jwt.NumericDate{
-						Time: time.Date(2021, time.November, 19, 12, 31, 28, 0, time.Local),
+						Time: time.Date(2021, time.November, 19, 4, 31, 28, 0, time.UTC).Local(),
 					},
 					NotBefore: &jwt.NumericDate{
-						Time: time.Date(1970, time.January, 1, 8, 0, 0, 0, time.Local),
+						Time: time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC).Local(),
 					},
 					IssuedAt: &jwt.NumericDate{
-						Time: time.Date(2021, time.November, 19, 12, 26, 28, 0, time.Local),
+						Time: time.Date(2021, time.November, 19, 4, 26, 28, 0, time.UTC).Local(),
 					},
 				},
 			},
