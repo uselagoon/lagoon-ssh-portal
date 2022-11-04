@@ -138,6 +138,11 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't parse user account token: %v", err)
 	}
+	if tok.Method.Alg() != jwt.SigningMethodRS256.Alg() {
+		return nil, nil, nil,
+			fmt.Errorf("unexepcted token signing algorithm: expected %s, got %s",
+				jwt.SigningMethodRS256.Alg(), tok.Method.Alg())
+	}
 	claims, ok := tok.Claims.(*SSHAPIClaims)
 	if !ok {
 		return nil, nil, nil, fmt.Errorf("invalid token claims type: %T", tok.Claims)
