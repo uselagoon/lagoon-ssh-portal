@@ -3,7 +3,7 @@ module github.com/uselagoon/ssh-portal
 go 1.19
 
 require (
-	github.com/alecthomas/assert/v2 v2.1.0
+	github.com/alecthomas/assert/v2 v2.2.0
 	github.com/alecthomas/kong v0.7.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-sql-driver/mysql v1.6.0
