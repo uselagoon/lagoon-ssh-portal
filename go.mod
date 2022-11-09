@@ -12,7 +12,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.13.1-0.20211018182449-f2416a8b1483
-	github.com/prometheus/client_golang v1.13.1
+	github.com/prometheus/client_golang v1.14.0
 	go.opentelemetry.io/otel v1.11.1
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
@@ -51,7 +51,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.6.4 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
