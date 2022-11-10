@@ -25,12 +25,10 @@ type ServeCmd struct {
 
 // Run the serve command to handle SSH connection requests.
 func (cmd *ServeCmd) Run(log *zap.Logger) error {
-	// instrumentation requires a separate context because deferred Shutdown()
-	// will exit immediately if the context is already done.
-	ictx := context.Background()
-	// init metrics
+	// metrics needs a separate context because deferred Shutdown() will exit
+	// immediately the context is done, which is the case for ctx on SIGTERM.
 	m := metrics.NewServer(log, ":9912")
-	defer m.Shutdown(ictx) //nolint:errcheck
+	defer m.Shutdown(context.Background()) //nolint:errcheck
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()

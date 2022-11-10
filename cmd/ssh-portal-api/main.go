@@ -20,14 +20,10 @@ func main() {
 	)
 	// init logger
 	var log *zap.Logger
-	var err error
 	if cli.Debug {
-		log, err = zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel))
+		log = zap.Must(zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel)))
 	} else {
-		log, err = zap.NewProduction()
-	}
-	if err != nil {
-		panic(err)
+		log = zap.Must(zap.NewProduction())
 	}
 	defer log.Sync() //nolint:errcheck
 	// execute CLI
