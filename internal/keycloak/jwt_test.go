@@ -9,17 +9,17 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func TestUnmarshalUserAttributes(t *testing.T) {
+func TestUnmarshalLagoonClaims(t *testing.T) {
 	var testCases = map[string]struct {
 		input  []byte
-		expect *SSHAPIClaims
+		expect *LagoonClaims
 	}{
 		"two groups": {
 			input: []byte(`{
 		"group_lagoon_project_ids": [
 			"{\"credentialtest-group1\":[1]}",
    		"{\"ci-group\":[3,4,5,6,7,8,9,10,11,12,17,14,16,20,21,24,19,23,31]}"]}`),
-			expect: &SSHAPIClaims{
+			expect: &LagoonClaims{
 				RealmRoles: nil,
 				UserGroups: nil,
 				GroupProjectIDs: map[string][]int{
@@ -75,7 +75,7 @@ func TestUnmarshalUserAttributes(t *testing.T) {
  				 ["{\"credentialtest-group1\":[1]}",
 					"{\"ci-group\":[3,4,5,6,7,8,9,10,11,12,17,14,16,20,21,24,19,23,31]}"]
 				}`),
-			expect: &SSHAPIClaims{
+			expect: &LagoonClaims{
 				RealmRoles: []string{
 					"owner",
 					"platform-owner",
@@ -114,7 +114,7 @@ func TestUnmarshalUserAttributes(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			var sac *SSHAPIClaims
+			var sac *LagoonClaims
 			err := json.Unmarshal(tc.input, &sac)
 			if err != nil {
 				tt.Fatal(err)

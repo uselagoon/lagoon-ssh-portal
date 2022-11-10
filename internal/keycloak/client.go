@@ -15,11 +15,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"golang.org/x/oauth2"
 )
 
 const pkgName = "github.com/uselagoon/ssh-portal/internal/keycloak"
@@ -98,61 +94,4 @@ func publicKey(ctx context.Context, u url.URL) (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("unexpected public key type: %T", pubKey)
 	}
 	return rsaPubKey, nil
-}
-
-// UserRolesAndGroups queries Keycloak given the user UUID, and returns the
-// user's realm roles, group memberships, and the project IDs associated with
-// those groups.
-func (c *Client) UserRolesAndGroups(ctx context.Context,
-	userUUID *uuid.UUID) ([]string, []string, map[string][]int, error) {
-	// set up tracing
-	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserRolesAndGroups")
-	defer span.End()
-	// get user token
-	tokenURL := *c.baseURL
-	tokenURL.Path = path.Join(tokenURL.Path,
-		`/auth/realms/lagoon/protocol/openid-connect/token`)
-	userConfig := oauth2.Config{
-		ClientID:     c.clientID,
-		ClientSecret: c.clientSecret,
-		Endpoint: oauth2.Endpoint{
-			TokenURL: tokenURL.String(),
-		},
-	}
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
-		Timeout: 10 * time.Second,
-	})
-	userToken, err := userConfig.Exchange(ctx, "",
-		// https://datatracker.ietf.org/doc/html/rfc8693#section-2.1
-		oauth2.SetAuthURLParam("grant_type",
-			"urn:ietf:params:oauth:grant-type:token-exchange"),
-		// https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange
-		oauth2.SetAuthURLParam("requested_subject", userUUID.String()))
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't get user token: %v", err)
-	}
-	c.log.Debug("got user token")
-	// parse and extract verified attributes
-	tok, err := jwt.ParseWithClaims(userToken.AccessToken, &SSHAPIClaims{},
-		func(_ *jwt.Token) (any, error) { return c.jwtPubKey, nil })
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't parse user account token: %v", err)
-	}
-	if tok.Method.Alg() != jwt.SigningMethodRS256.Alg() {
-		return nil, nil, nil,
-			fmt.Errorf("unexepcted token signing algorithm: expected %s, got %s",
-				jwt.SigningMethodRS256.Alg(), tok.Method.Alg())
-	}
-	claims, ok := tok.Claims.(*SSHAPIClaims)
-	if !ok {
-		return nil, nil, nil, fmt.Errorf("invalid token claims type: %T", tok.Claims)
-	}
-	// Sanity check the AuthorizedParty to confirm the token is for us.
-	// Keycloak adds this field for token-exchange operations.
-	// https://openid.net/specs/openid-connect-core-1_0.html#IDToken
-	if claims.AuthorizedParty != "service-api" {
-		return nil, nil, nil, fmt.Errorf("invalid azp, expected service-api got %s",
-			claims.AuthorizedParty)
-	}
-	return claims.RealmRoles, claims.UserGroups, claims.GroupProjectIDs, nil
 }
