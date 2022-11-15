@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/alecthomas/assert/v2 v2.2.0
-	github.com/alecthomas/kong v0.7.0
+	github.com/alecthomas/kong v0.7.1
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang-jwt/jwt/v4 v4.4.2
