@@ -70,6 +70,7 @@ jobs:
         binary:
         - ssh-portal-api
         - ssh-portal
+        - ssh-token
     needs:
     - tag
     - release

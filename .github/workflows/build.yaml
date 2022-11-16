@@ -33,6 +33,7 @@ jobs:
         binary:
         - ssh-portal-api
         - ssh-portal
+        - ssh-token
     needs: build
     runs-on: ubuntu-latest
     steps:
