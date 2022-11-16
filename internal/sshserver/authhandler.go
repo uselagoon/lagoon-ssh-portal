@@ -29,12 +29,12 @@ var (
 
 var (
 	authAttemptsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "authentication_attempts_total",
-		Help: "The total number of authentication attempts",
+		Name: "sshportal_authentication_attempts_total",
+		Help: "The total number of ssh-portal authentication attempts",
 	})
 	authSuccessTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "authentication_success_total",
-		Help: "The total number of successful authentication",
+		Name: "sshportal_authentication_success_total",
+		Help: "The total number of successful ssh-portal authentications",
 	})
 )
 

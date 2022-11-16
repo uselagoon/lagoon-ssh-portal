@@ -12,8 +12,8 @@ import (
 
 var (
 	sessionTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "session_total",
-		Help: "The total number of ssh sessions started",
+		Name: "sshportal_sessions_total",
+		Help: "The total number of ssh-portal sessions started",
 	})
 )
 
