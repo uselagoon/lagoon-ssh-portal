@@ -1,20 +1,41 @@
 package main
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
+// These variables are set by GoReleaser during the build.
 var (
+	commit      string
 	date        string
 	goVersion   string
-	shortCommit string
+	projectName string
 	version     string
 )
 
-// VersionCmd represents the version command.
+// VersionCmd represents the `version` command.
 type VersionCmd struct{}
 
-// Run the version command to print version information.
-func (cmd *VersionCmd) Run() error {
-	fmt.Printf("Lagoon ssh-portal-api %v (%v) compiled with %v on %v\n", version,
-		shortCommit, goVersion, date)
-	return nil
+// Run the Version command.
+func (*VersionCmd) Run() error {
+	v, err := json.Marshal(
+		struct {
+			ProjectName string
+			Version     string
+			Commit      string
+			BuildDate   string
+			GoVersion   string
+		}{
+			projectName,
+			version,
+			commit,
+			date,
+			goVersion,
+		})
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Println(string(v))
+	return err
 }
