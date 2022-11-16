@@ -18,12 +18,12 @@ type KeycloakService interface {
 
 var (
 	sessionTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "session_total",
-		Help: "The total number of ssh sessions started",
+		Name: "sshtoken_sessions_total",
+		Help: "The total number of ssh-token sessions started",
 	})
 	tokensGeneratedTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "tokens_generated_total",
-		Help: "The total number of Lagoon authentication tokens generated",
+		Name: "sshtoken_tokens_generated_total",
+		Help: "The total number of ssh-token user access tokens generated",
 	})
 )
 

@@ -25,15 +25,15 @@ type LagoonDBService interface {
 
 var (
 	authnAttemptsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "authentication_attempts_total",
-		Help: "The total number of authentication attempts",
+		Name: "sshtoken_authentication_attempts_total",
+		Help: "The total number of ssh-token authentication attempts",
 	})
 	authnSuccessTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "authentication_success_total",
-		Help: "The total number of successful authentication attempts",
+		Name: "sshtoken_authentication_success_total",
+		Help: "The total number of successful ssh-token authentications",
 	})
 	authnAttemptsNonLagoonUser = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "authentication_attempts_non_lagoon_user",
+		Name: "sshtoken_authentication_attempts_non_lagoon_user",
 		Help: "The total number of failed authentication attempts with a user other than lagoon",
 	})
 )
