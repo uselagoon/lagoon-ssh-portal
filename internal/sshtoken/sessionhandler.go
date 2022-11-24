@@ -13,6 +13,7 @@ import (
 
 // KeycloakService provides methods for querying the Keycloak API.
 type KeycloakService interface {
+	UserAccessTokenResponse(context.Context, *uuid.UUID) (string, error)
 	UserAccessToken(context.Context, *uuid.UUID) (string, error)
 }
 
@@ -57,14 +58,67 @@ func sessionHandler(log *zap.Logger, k KeycloakService) ssh.Handler {
 			}
 			return
 		}
-		// validate the command. right now we only support "token".
+		// valid commands:
+		// - grant: returns a full access token response as per
+		//   https://www.rfc-editor.org/rfc/rfc6749#section-4.1.4
+		// - token: returns a bare access token (the contents of the access_token
+		//   field inside a full token access token response)
 		cmd := s.Command()
-		if len(cmd) != 1 || cmd[0] != "token" {
+		if len(cmd) != 1 {
+			log.Debug("too many arguments",
+				zap.Strings("command", cmd),
+				zap.String("sessionID", sid))
+			_, err := fmt.Fprintf(s.Stderr(),
+				"invalid command: only a single argument is supported. SID: %s\n", sid)
+			if err != nil {
+				log.Debug("couldn't write error message to session stream",
+					zap.String("sessionID", sid),
+					zap.Error(err))
+			}
+			return
+		}
+		// get response
+		var response string
+		var err error
+		switch cmd[0] {
+		case "grant":
+			response, err = k.UserAccessTokenResponse(s.Context(), uid)
+			if err != nil {
+				log.Warn("couldn't get user access token response",
+					zap.String("sessionID", sid),
+					zap.String("userUUID", uid.String()),
+					zap.Error(err))
+				_, err = fmt.Fprintf(s.Stderr(),
+					"internal error. SID: %s\n", sid)
+				if err != nil {
+					log.Debug("couldn't write error message to session stream",
+						zap.String("sessionID", sid),
+						zap.Error(err))
+				}
+				return
+			}
+		case "token":
+			response, err = k.UserAccessToken(s.Context(), uid)
+			if err != nil {
+				log.Warn("couldn't get user access token",
+					zap.String("sessionID", sid),
+					zap.String("userUUID", uid.String()),
+					zap.Error(err))
+				_, err = fmt.Fprintf(s.Stderr(),
+					"internal error. SID: %s\n", sid)
+				if err != nil {
+					log.Debug("couldn't write error message to session stream",
+						zap.String("sessionID", sid),
+						zap.Error(err))
+				}
+				return
+			}
+		default:
 			log.Debug("invalid command",
 				zap.Strings("command", cmd),
 				zap.String("sessionID", sid))
 			_, err := fmt.Fprintf(s.Stderr(),
-				"invalid command: only \"token\" is supported. SID: %s\n", sid)
+				"invalid command: only \"grant\" and \"token\" are supported. SID: %s\n", sid)
 			if err != nil {
 				log.Debug("couldn't write error message to session stream",
 					zap.String("sessionID", sid),
@@ -72,33 +126,17 @@ func sessionHandler(log *zap.Logger, k KeycloakService) ssh.Handler {
 			}
 			return
 		}
-		// get the user access token from keycloak
-		accessToken, err := k.UserAccessToken(s.Context(), uid)
+		// send response
+		_, err = fmt.Fprintf(s, "%s\n", response)
 		if err != nil {
-			log.Warn("couldn't get user access token",
-				zap.String("sessionID", sid),
-				zap.String("userUUID", uid.String()),
-				zap.Error(err))
-			_, err = fmt.Fprintf(s.Stderr(),
-				"internal error. SID: %s\n", sid)
-			if err != nil {
-				log.Debug("couldn't write error message to session stream",
-					zap.String("sessionID", sid),
-					zap.Error(err))
-			}
-			return
-		}
-		// send token response
-		_, err = fmt.Fprintf(s, "%s\n", accessToken)
-		if err != nil {
-			log.Debug("couldn't write token to session stream",
+			log.Debug("couldn't write response to session stream",
 				zap.String("sessionID", sid),
 				zap.String("userUUID", uid.String()),
 				zap.Error(err))
 			return
 		}
 		tokensGeneratedTotal.Inc()
-		log.Info("generated token for user",
+		log.Info("generated access token for user",
 			zap.String("sessionID", sid),
 			zap.String("userUUID", uid.String()))
 	}
