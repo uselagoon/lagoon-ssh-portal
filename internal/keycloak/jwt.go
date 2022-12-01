@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang-jwt/jwt/v4"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
 
@@ -52,6 +53,8 @@ func (c *Client) validateTokenClaims(t *oauth2.Token) (*LagoonClaims, error) {
 	tok, err := jwt.ParseWithClaims(t.AccessToken, &LagoonClaims{},
 		func(_ *jwt.Token) (any, error) { return c.jwtPubKey, nil })
 	if err != nil {
+		c.log.Debug("token parsing error", zap.Error(err),
+			zap.String("accessToken", t.AccessToken))
 		return nil, fmt.Errorf("couldn't parse user access token: %v", err)
 	}
 	if tok.Method.Alg() != jwt.SigningMethodRS256.Alg() {
