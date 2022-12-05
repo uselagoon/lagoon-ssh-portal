@@ -2,6 +2,7 @@ package sshserver
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,6 +17,21 @@ var (
 		Help: "The total number of ssh-portal sessions started",
 	})
 )
+
+func sshifyCommand(sftp bool, cmd []string) []string {
+	// if this is an sftp session we ignore any commands
+	if sftp {
+		return []string{"sftp-server", "-u", "0002"}
+	}
+	// if there is no command, assume the user wants a shell
+	if len(cmd) == 0 {
+		return []string{"sh"}
+	}
+	// if there is a command, wrap it in a shell the way openssh does
+	// https://github.com/openssh/openssh-portable/blob/
+	// 	73dcca12115aa12ed0d123b914d473c384e52651/session.c#L1705-L1713
+	return []string{"sh", "-c", strings.Join(cmd, " ")}
+}
 
 // sessionHandler returns a ssh.Handler which connects the ssh session to the
 // requested container.
@@ -41,9 +57,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		)
 		// parse the command line arguments to extract any service or container args
 		service, container, cmd := parseConnectionParams(s.Command())
-		if sftp {
-			cmd = []string{"sftp-server", "-u", "0002"}
-		}
+		cmd = sshifyCommand(sftp, cmd)
 		// validate the service and container
 		if err := k8s.ValidateLabelValue(service); err != nil {
 			log.Debug("invalid service name",
