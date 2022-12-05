@@ -168,10 +168,6 @@ func (c *Client) getExecutor(ctx context.Context, namespace, deployment,
 	if container == "" {
 		container = firstContainer
 	}
-	// check the command. if there isn't one, give the user a shell.
-	if len(command) == 0 {
-		command = []string{"sh"}
-	}
 	// construct the request
 	req := c.clientset.CoreV1().RESTClient().Post().Namespace(namespace).
 		Resource("pods").Name(firstPod).SubResource("exec")
