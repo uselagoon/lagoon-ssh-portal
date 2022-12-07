@@ -111,11 +111,6 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				zap.Error(err))
 			return
 		}
-		log.Debug("keycloak query response",
-			zap.Strings("realmRoles", realmRoles),
-			zap.Strings("userGroups", userGroups),
-			zap.Any("groupProjectIDs", groupProjectIDs),
-			zap.String("userUUID", user.UUID.String()))
 		// calculate permission
 		ok := permission.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
 			groupProjectIDs)
