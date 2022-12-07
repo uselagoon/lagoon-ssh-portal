@@ -1,3 +1,4 @@
+// Package lagoondb provides an interface to the Lagoon API database.
 package lagoondb
 
 import (
@@ -69,7 +70,8 @@ func (c *Client) EnvironmentByNamespaceName(ctx context.Context, name string) (*
 		project.id AS project_id,
 		project.name AS project_name
 	FROM environment JOIN project ON environment.project = project.id
-	WHERE environment.openshift_project_name = ?`, name)
+	WHERE environment.openshift_project_name = ?
+	LIMIT 1`, name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNoResult
@@ -98,4 +100,31 @@ func (c *Client) UserBySSHFingerprint(ctx context.Context, fingerprint string) (
 		return nil, err
 	}
 	return &user, nil
+}
+
+// SSHEndpointByEnvironmentID returns the SSH host and port of the ssh-portal
+// associated with the given environment ID.
+func (c *Client) SSHEndpointByEnvironmentID(ctx context.Context,
+	envID int) (string, string, error) {
+	// set up tracing
+	ctx, span := otel.Tracer(pkgName).Start(ctx, "SSHEndpointByEnvironmentID")
+	defer span.End()
+	// run query
+	ssh := struct {
+		Host string `db:"ssh_host"`
+		Port string `db:"ssh_port"`
+	}{}
+	err := c.db.GetContext(ctx, &ssh, `
+	SELECT
+		openshift.ssh_host AS ssh_host,
+		openshift.ssh_port AS ssh_port
+	FROM environment JOIN openshift ON environment.openshift = openshift.id
+	WHERE environment.id = ?`, envID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", ErrNoResult
+		}
+		return "", "", err
+	}
+	return ssh.Host, ssh.Port, nil
 }

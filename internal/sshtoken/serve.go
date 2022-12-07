@@ -17,11 +17,19 @@ import (
 // give an 8 second deadline to shut down cleanly.
 const shutdownTimeout = 8 * time.Second
 
+// LagoonDBService provides methods for querying the Lagoon API DB.
+type LagoonDBService interface {
+	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
+	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
+	SSHEndpointByEnvironmentID(context.Context, int) (string, string, error)
+}
+
 // Serve contains the main ssh session logic
 func Serve(ctx context.Context, log *zap.Logger, l net.Listener,
-	ldb *lagoondb.Client, k *keycloak.Client, hostKeys [][]byte) error {
+	ldb *lagoondb.Client, keycloakToken, keycloakPermission *keycloak.Client,
+	hostKeys [][]byte) error {
 	srv := ssh.Server{
-		Handler:          sessionHandler(log, k),
+		Handler:          sessionHandler(log, keycloakToken, keycloakPermission, ldb),
 		PublicKeyHandler: pubKeyAuth(log, ldb),
 	}
 	for _, hk := range hostKeys {

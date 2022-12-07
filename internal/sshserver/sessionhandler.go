@@ -44,11 +44,7 @@ func sshifyCommand(sftp bool, cmd []string) []string {
 func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
-		sid, ok := s.Context().Value(ssh.ContextKeySessionID).(string)
-		if !ok {
-			log.Warn("couldn't get session ID")
-			return
-		}
+		sid := s.Context().SessionID()
 		// start the command
 		log.Debug("starting command exec",
 			zap.String("sessionID", sid),

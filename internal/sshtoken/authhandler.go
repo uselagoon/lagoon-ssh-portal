@@ -1,7 +1,6 @@
 package sshtoken
 
 import (
-	"context"
 	"errors"
 
 	"github.com/gliderlabs/ssh"
@@ -18,11 +17,6 @@ const (
 	userUUID ctxKey = iota
 )
 
-// LagoonDBService provides methods for querying the Lagoon API DB.
-type LagoonDBService interface {
-	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
-}
-
 var (
 	authnAttemptsTotal = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "sshtoken_authentication_attempts_total",
@@ -32,15 +26,11 @@ var (
 		Name: "sshtoken_authentication_success_total",
 		Help: "The total number of successful ssh-token authentications",
 	})
-	authnAttemptsNonLagoonUser = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshtoken_authentication_attempts_non_lagoon_user",
-		Help: "The total number of failed authentication attempts with a user other than lagoon",
-	})
 )
 
 // pubKeyAuth returns a ssh.PublicKeyHandler which accepts any key which
 // matches a user, and the associated user UUID to the ssh context.
-func pubKeyAuth(log *zap.Logger, l LagoonDBService) ssh.PublicKeyHandler {
+func pubKeyAuth(log *zap.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		authnAttemptsTotal.Inc()
 		// parse SSH public key
@@ -51,17 +41,9 @@ func pubKeyAuth(log *zap.Logger, l LagoonDBService) ssh.PublicKeyHandler {
 				zap.Error(err))
 			return false
 		}
-		// validate user string
-		if ctx.User() != "lagoon" {
-			authnAttemptsNonLagoonUser.Inc()
-			log.Debug(`invalid user: only "lagoon" is supported`,
-				zap.String("sessionID", ctx.SessionID()),
-				zap.String("user", ctx.User()))
-			return false
-		}
 		// identify Lagoon user by ssh key fingerprint
 		fingerprint := gossh.FingerprintSHA256(pubKey)
-		user, err := l.UserBySSHFingerprint(ctx, fingerprint)
+		user, err := ldb.UserBySSHFingerprint(ctx, fingerprint)
 		if err != nil {
 			if errors.Is(err, lagoondb.ErrNoResult) {
 				log.Debug("unknown SSH Fingerprint",
@@ -69,18 +51,20 @@ func pubKeyAuth(log *zap.Logger, l LagoonDBService) ssh.PublicKeyHandler {
 			} else {
 				log.Warn("couldn't query for user by SSH key fingerprint",
 					zap.String("sessionID", ctx.SessionID()),
+					zap.String("fingerprint", fingerprint),
 					zap.Error(err))
 			}
 			return false
 		}
-		// The SSH key fingerprint was in the database so authentication was
+		// The SSH key fingerprint was in the database so "authentication" was
 		// successful. Inject the user UUID into the context so it can be used in
 		// the session handler.
 		authnSuccessTotal.Inc()
 		ctx.SetValue(userUUID, user.UUID)
 		log.Info("authentication successful",
 			zap.String("sessionID", ctx.SessionID()),
-			zap.String("fingerprint", fingerprint))
+			zap.String("fingerprint", fingerprint),
+			zap.String("userID", user.UUID.String()))
 		return true
 	}
 }
