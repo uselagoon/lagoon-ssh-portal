@@ -15,7 +15,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	go.opentelemetry.io/otel v1.11.2
 	go.uber.org/zap v1.24.0
-	golang.org/x/crypto v0.3.0
+	golang.org/x/crypto v0.4.0
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 	k8s.io/api v0.25.5
 	k8s.io/apimachinery v0.25.5
