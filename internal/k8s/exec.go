@@ -198,7 +198,7 @@ func (c *Client) Exec(ctx context.Context, namespace, deployment,
 		return fmt.Errorf("couldn't get executor: %v", err)
 	}
 	// execute the command
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdio,
 		Stdout: stdio,
 		Stderr: stderr,
