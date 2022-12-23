@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gliderlabs/ssh"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -191,7 +192,7 @@ func (c *Client) getExecutor(ctx context.Context, namespace, deployment,
 // shell, running in a pod inside the deployment.
 func (c *Client) Exec(ctx context.Context, namespace, deployment,
 	container string, command []string, stdio io.ReadWriter, stderr io.Writer,
-	tty bool) error {
+	tty bool, winch <-chan ssh.Window) error {
 	exec, err := c.getExecutor(ctx, namespace, deployment, container, command,
 		stderr, tty)
 	if err != nil {
@@ -199,8 +200,10 @@ func (c *Client) Exec(ctx context.Context, namespace, deployment,
 	}
 	// execute the command
 	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:  stdio,
-		Stdout: stdio,
-		Stderr: stderr,
+		Stdin:             stdio,
+		Stdout:            stdio,
+		Stderr:            stderr,
+		Tty:               tty,
+		TerminalSizeQueue: newTermSizeQueue(ctx, winch),
 	})
 }

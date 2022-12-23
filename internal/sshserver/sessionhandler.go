@@ -99,8 +99,8 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			}
 			return
 		}
-		// check if a pty was requested
-		_, _, pty := s.Pty()
+		// check if a pty was requested, and get the window size channel
+		_, winch, pty := s.Pty()
 		// extract info passed through the context by the authhandler
 		ctx := s.Context()
 		eid, ok := ctx.Value(environmentIDKey).(int)
@@ -137,7 +137,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			zap.Strings("command", cmd),
 		)
 		err = c.Exec(s.Context(), s.User(), deployment, container, cmd, s,
-			s.Stderr(), pty)
+			s.Stderr(), pty, winch)
 		if err != nil {
 			log.Warn("couldn't execute command",
 				zap.String("sessionID", sid),
