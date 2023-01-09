@@ -3,7 +3,7 @@ module github.com/uselagoon/ssh-portal
 go 1.19
 
 require (
-	github.com/alecthomas/assert/v2 v2.2.0
+	github.com/alecthomas/assert/v2 v2.2.1
 	github.com/alecthomas/kong v0.7.1
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-sql-driver/mysql v1.7.0
@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	github.com/alecthomas/repr v0.1.0 // indirect
+	github.com/alecthomas/repr v0.2.0 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
