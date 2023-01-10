@@ -38,8 +38,8 @@ var (
 	})
 )
 
-// pubKeyAuth returns a ssh.PublicKeyHandler which accepts any key, and simply
-// adds the given key to the connection context.
+// pubKeyAuth returns a ssh.PublicKeyHandler which queries the remote
+// ssh-portal-api for Lagoon SSH authorization.
 func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 	c *k8s.Client) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
@@ -87,7 +87,7 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 			ctx.SetValue(projectIDKey, pid)
 			ctx.SetValue(projectNameKey, pname)
 			ctx.SetValue(sshFingerprint, fingerprint)
-			log.Debug("authentication successful",
+			log.Debug("Lagoon authorization granted",
 				zap.String("sessionID", ctx.SessionID()),
 				zap.String("fingerprint", fingerprint),
 				zap.String("namespace", ctx.User()))

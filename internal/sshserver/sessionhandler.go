@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"go.uber.org/zap"
+	"k8s.io/utils/exec"
 )
 
 var (
@@ -139,15 +140,33 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		err = c.Exec(s.Context(), s.User(), deployment, container, cmd, s,
 			s.Stderr(), pty, winch)
 		if err != nil {
-			log.Warn("couldn't execute command",
-				zap.String("sessionID", sid),
-				zap.Error(err))
-			_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
-				sid)
-			if err != nil {
-				log.Warn("couldn't send error to client",
+			if exitErr, ok := err.(exec.ExitError); ok {
+				log.Debug("couldn't execute command",
 					zap.String("sessionID", sid),
 					zap.Error(err))
+				if err = s.Exit(exitErr.ExitStatus()); err != nil {
+					log.Warn("couldn't send exit code to client",
+						zap.String("sessionID", sid),
+						zap.Error(err))
+				}
+			} else {
+				log.Warn("couldn't execute command",
+					zap.String("sessionID", sid),
+					zap.Error(err))
+				_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
+					sid)
+				if err != nil {
+					log.Warn("couldn't send error to client",
+						zap.String("sessionID", sid),
+						zap.Error(err))
+				}
+				// Send a non-zero exit code to the client on internal exec error.
+				// OpenSSH uses 255 for this, so use 254 to differentiate the error.
+				if err = s.Exit(254); err != nil {
+					log.Warn("couldn't send exit code to client",
+						zap.String("sessionID", sid),
+						zap.Error(err))
+				}
 			}
 		}
 		log.Debug("finished command exec",
