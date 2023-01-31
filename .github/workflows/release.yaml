@@ -101,7 +101,7 @@ jobs:
           latest
     - name: Build and push ${{ matrix.binary }} container image
       id: docker_build
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
         tags: ${{ steps.docker_metadata.outputs.tags }}
