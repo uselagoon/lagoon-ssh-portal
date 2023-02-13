@@ -13,12 +13,22 @@ type Permission struct {
 // initialization, and is passed to NewPermission().
 type Option func(*Permission)
 
-// WithRBACCanSSH configures a custom RBAC ruleset governing which user roles
-// (developer, maintainer etc.) can SSH into which Lagoon environment types
-// (development, production).
-func WithRBACCanSSH(rbacCanSSH map[lagoon.EnvironmentType][]lagoon.UserRole) Option {
+// BlockDeveloperSSH configures the Permission object returned by
+// NewPermission() to disallow Developer SSH access to Lagoon environments.
+// Instead, only Maintainers and Owners can SSH to either Development or
+// Production environments.
+func BlockDeveloperSSH() Option {
 	return func(p *Permission) {
-		p.envTypeRoleCanSSH = rbacCanSSH
+		p.envTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
+			lagoon.Development: {
+				lagoon.Maintainer,
+				lagoon.Owner,
+			},
+			lagoon.Production: {
+				lagoon.Maintainer,
+				lagoon.Owner,
+			},
+		}
 	}
 }
 

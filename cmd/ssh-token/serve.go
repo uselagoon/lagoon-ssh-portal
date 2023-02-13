@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
-	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
@@ -49,20 +48,7 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	if cmd.DeveloperCanSSH {
 		p = rbac.NewPermission()
 	} else {
-		// if Developers should not be allowed to SSH, we need custom permissions
-		// to allow only Maintainer and Owner access.
-		p = rbac.NewPermission(rbac.WithRBACCanSSH(
-			map[lagoon.EnvironmentType][]lagoon.UserRole{
-				lagoon.Development: {
-					lagoon.Maintainer,
-					lagoon.Owner,
-				},
-				lagoon.Production: {
-					lagoon.Maintainer,
-					lagoon.Owner,
-				},
-			},
-		))
+		p = rbac.NewPermission(rbac.BlockDeveloperSSH())
 	}
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()

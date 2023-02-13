@@ -341,18 +341,7 @@ func TestUserCanSSHCustomRBAC(t *testing.T) {
 			},
 		}, expect: true},
 	}
-	p := rbac.NewPermission(rbac.WithRBACCanSSH(
-		map[lagoon.EnvironmentType][]lagoon.UserRole{
-			lagoon.Development: {
-				lagoon.Maintainer,
-				lagoon.Owner,
-			},
-			lagoon.Production: {
-				lagoon.Maintainer,
-				lagoon.Owner,
-			},
-		},
-	))
+	p := rbac.NewPermission(rbac.BlockDeveloperSSH())
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
 			response := p.UserCanSSHToEnvironment(context.Background(),
