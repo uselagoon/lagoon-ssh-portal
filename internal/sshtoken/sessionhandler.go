@@ -21,9 +21,9 @@ type KeycloakTokenService interface {
 	UserAccessToken(context.Context, *uuid.UUID) (string, error)
 }
 
-// KeycloakPermissionService provides methods for querying the Keycloak API for
+// KeycloakUserInfoService provides methods for querying the Keycloak API for
 // permission information contained in service-api user tokens.
-type KeycloakPermissionService interface {
+type KeycloakUserInfoService interface {
 	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string,
 		map[string][]int, error)
 }
@@ -142,12 +142,12 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 // endpoint to use for ssh shell access. If the user doesn't have access to the
 // environment a generic error message is returned.
 func redirectSession(s ssh.Session, log *zap.Logger,
-	p *permission.Permission, keycloakPermission KeycloakPermissionService,
+	p *permission.Permission, keycloakUserInfo KeycloakUserInfoService,
 	ldb LagoonDBService, uid *uuid.UUID) {
 	sid := s.Context().SessionID()
 	// get the user roles and groups
 	realmRoles, userGroups, groupProjectIDs, err :=
-		keycloakPermission.UserRolesAndGroups(s.Context(), uid)
+		keycloakUserInfo.UserRolesAndGroups(s.Context(), uid)
 	if err != nil {
 		log.Error("couldn't query user roles and groups",
 			zap.String("sessionID", sid),
@@ -288,7 +288,7 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 // the session stream and then closes the connection.
 func sessionHandler(log *zap.Logger, p *permission.Permission,
 	keycloakToken KeycloakTokenService,
-	keycloakPermission KeycloakPermissionService,
+	keycloakPermission KeycloakUserInfoService,
 	ldb LagoonDBService) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
