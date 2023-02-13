@@ -35,7 +35,7 @@ var (
 )
 
 func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
-	l LagoonDBService, k KeycloakService) nats.Handler {
+	p *permission.Permission, l LagoonDBService, k KeycloakService) nats.Handler {
 	return func(_, replySubject string, query *SSHAccessQuery) {
 		var realmRoles, userGroups []string
 		var groupProjectIDs map[string][]int
@@ -111,8 +111,8 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				zap.Error(err))
 			return
 		}
-		// calculate permission
-		ok := permission.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
+		// check permission
+		ok := p.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
 			groupProjectIDs)
 		if ok {
 			log.Info("validated SSH access",

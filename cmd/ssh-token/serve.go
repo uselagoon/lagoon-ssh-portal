@@ -9,8 +9,10 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
+	"github.com/uselagoon/ssh-portal/internal/permission"
 	"github.com/uselagoon/ssh-portal/internal/sshtoken"
 	"go.uber.org/zap"
 )
@@ -21,6 +23,7 @@ type ServeCmd struct {
 	APIDBDatabase                  string `kong:"default='infrastructure',env='API_DB_DATABASE',help='Lagoon API DB Database Name'"`
 	APIDBPassword                  string `kong:"required,env='API_DB_PASSWORD',help='Lagoon API DB Password'"`
 	APIDBUsername                  string `kong:"default='api',env='API_DB_USERNAME',help='Lagoon API DB Username'"`
+	DeveloperCanSSH                bool   `kong:"default='true',env='DEVELOPER_CAN_SSH',help='Developer permission to SSH to Development environments'"`
 	KeycloakBaseURL                string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakTokenClientID          string `kong:"default='auth-server',env='KEYCLOAK_AUTH_SERVER_CLIENT_ID',help='Keycloak auth-server OAuth2 Client ID'"`
 	KeycloakTokenClientSecret      string `kong:"required,env='KEYCLOAK_AUTH_SERVER_CLIENT_SECRET',help='Keycloak auth-server OAuth2 Client Secret'"`
@@ -41,6 +44,26 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
+	// init RBAC permission engine
+	var p *permission.Permission
+	if cmd.DeveloperCanSSH {
+		p = permission.NewPermission()
+	} else {
+		// if Developers should not be allowed to SSH, we need custom permissions
+		// to allow only Maintainer and Owner access.
+		p = permission.NewPermission(permission.WithRBACCanSSH(
+			map[lagoon.EnvironmentType][]lagoon.UserRole{
+				lagoon.Development: {
+					lagoon.Maintainer,
+					lagoon.Owner,
+				},
+				lagoon.Production: {
+					lagoon.Maintainer,
+					lagoon.Owner,
+				},
+			},
+		))
+	}
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
 	dbConf.Addr = cmd.APIDBAddress
@@ -78,6 +101,6 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		}
 	}
 	// start serving SSH token requests
-	return sshtoken.Serve(ctx, log, l, ldb, keycloakToken, keycloakPermission,
+	return sshtoken.Serve(ctx, log, l, p, ldb, keycloakToken, keycloakPermission,
 		hostkeys)
 }

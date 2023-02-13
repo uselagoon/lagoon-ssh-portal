@@ -172,9 +172,10 @@ func TestUserCanSSH(t *testing.T) {
 			},
 		}, expect: true},
 	}
+	p := permission.NewPermission()
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			response := permission.UserCanSSHToEnvironment(context.Background(),
+			response := p.UserCanSSHToEnvironment(context.Background(),
 				tc.input.env, tc.input.realmRoles, tc.input.userGroups,
 				tc.input.groupProjectIDs)
 			if response != tc.expect {

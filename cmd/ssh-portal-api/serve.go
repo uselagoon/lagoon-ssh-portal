@@ -8,8 +8,10 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
+	"github.com/uselagoon/ssh-portal/internal/permission"
 	"github.com/uselagoon/ssh-portal/internal/sshportalapi"
 	"go.uber.org/zap"
 )
@@ -20,6 +22,7 @@ type ServeCmd struct {
 	APIDBDatabase        string `kong:"default='infrastructure',env='API_DB_DATABASE',help='Lagoon API DB Database Name'"`
 	APIDBPassword        string `kong:"required,env='API_DB_PASSWORD',help='Lagoon API DB Password'"`
 	APIDBUsername        string `kong:"default='api',env='API_DB_USERNAME',help='Lagoon API DB Username'"`
+	DeveloperCanSSH      bool   `kong:"default='true',env='DEVELOPER_CAN_SSH',help='Developer permission to SSH to Development environments'"`
 	KeycloakBaseURL      string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
@@ -35,6 +38,26 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
+	// init RBAC permission engine
+	var p *permission.Permission
+	if cmd.DeveloperCanSSH {
+		p = permission.NewPermission()
+	} else {
+		// if Developers should not be allowed to SSH, we need custom permissions
+		// to allow only Maintainer and Owner access.
+		p = permission.NewPermission(permission.WithRBACCanSSH(
+			map[lagoon.EnvironmentType][]lagoon.UserRole{
+				lagoon.Development: {
+					lagoon.Maintainer,
+					lagoon.Owner,
+				},
+				lagoon.Production: {
+					lagoon.Maintainer,
+					lagoon.Owner,
+				},
+			},
+		))
+	}
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
 	dbConf.Addr = cmd.APIDBAddress
@@ -53,5 +76,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		return fmt.Errorf("couldn't init keycloak Client: %v", err)
 	}
 	// start serving NATS requests
-	return sshportalapi.ServeNATS(ctx, stop, log, l, k, cmd.NATSURL)
+	return sshportalapi.ServeNATS(ctx, stop, log, p, l, k, cmd.NATSURL)
 }
