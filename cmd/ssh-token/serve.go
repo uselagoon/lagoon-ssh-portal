@@ -23,15 +23,15 @@ type ServeCmd struct {
 	APIDBPassword                  string `kong:"required,env='API_DB_PASSWORD',help='Lagoon API DB Password'"`
 	APIDBUsername                  string `kong:"default='api',env='API_DB_USERNAME',help='Lagoon API DB Username'"`
 	DeveloperCanSSH                bool   `kong:"default='true',env='DEVELOPER_CAN_SSH',help='Developer permission to SSH to Development environments'"`
-	KeycloakBaseURL                string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
-	KeycloakTokenClientID          string `kong:"default='auth-server',env='KEYCLOAK_AUTH_SERVER_CLIENT_ID',help='Keycloak auth-server OAuth2 Client ID'"`
-	KeycloakTokenClientSecret      string `kong:"required,env='KEYCLOAK_AUTH_SERVER_CLIENT_SECRET',help='Keycloak auth-server OAuth2 Client Secret'"`
-	KeycloakPermissionClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak service-api OAuth2 Client ID'"`
-	KeycloakPermissionClientSecret string `kong:"env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak service-api OAuth2 Client Secret'"`
-	SSHServerPort                  uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
 	HostKeyECDSA                   string `kong:"env='HOST_KEY_ECDSA',help='PEM encoded ECDSA host key'"`
 	HostKeyED25519                 string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
 	HostKeyRSA                     string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
+	KeycloakBaseURL                string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
+	KeycloakPermissionClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak service-api OAuth2 Client ID'"`
+	KeycloakPermissionClientSecret string `kong:"env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak service-api OAuth2 Client Secret'"`
+	KeycloakTokenClientID          string `kong:"default='auth-server',env='KEYCLOAK_AUTH_SERVER_CLIENT_ID',help='Keycloak auth-server OAuth2 Client ID'"`
+	KeycloakTokenClientSecret      string `kong:"required,env='KEYCLOAK_AUTH_SERVER_CLIENT_SECRET',help='Keycloak auth-server OAuth2 Client Secret'"`
+	SSHServerPort                  uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
 }
 
 // Run the serve command to ssh-portal API requests.
