@@ -12,7 +12,7 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
-	"github.com/uselagoon/ssh-portal/internal/permission"
+	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"github.com/uselagoon/ssh-portal/internal/sshtoken"
 	"go.uber.org/zap"
 )
@@ -45,13 +45,13 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
 	// init RBAC permission engine
-	var p *permission.Permission
+	var p *rbac.Permission
 	if cmd.DeveloperCanSSH {
-		p = permission.NewPermission()
+		p = rbac.NewPermission()
 	} else {
 		// if Developers should not be allowed to SSH, we need custom permissions
 		// to allow only Maintainer and Owner access.
-		p = permission.NewPermission(permission.WithRBACCanSSH(
+		p = rbac.NewPermission(rbac.WithRBACCanSSH(
 			map[lagoon.EnvironmentType][]lagoon.UserRole{
 				lagoon.Development: {
 					lagoon.Maintainer,

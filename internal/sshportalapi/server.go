@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/permission"
+	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +32,7 @@ type KeycloakService interface {
 
 // ServeNATS sshportalapi NATS requests.
 func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
-	p *permission.Permission, l LagoonDBService, k KeycloakService, natsURL string) error {
+	p *rbac.Permission, l LagoonDBService, k KeycloakService, natsURL string) error {
 	// setup synchronisation
 	wg := sync.WaitGroup{}
 	wg.Add(1)

@@ -1,4 +1,4 @@
-package permission_test
+package rbac_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/permission"
+	"github.com/uselagoon/ssh-portal/internal/rbac"
 )
 
 type args struct {
@@ -172,7 +172,7 @@ func TestUserCanSSHDefaultRBAC(t *testing.T) {
 			},
 		}, expect: true},
 	}
-	p := permission.NewPermission()
+	p := rbac.NewPermission()
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
 			response := p.UserCanSSHToEnvironment(context.Background(),
@@ -341,7 +341,7 @@ func TestUserCanSSHCustomRBAC(t *testing.T) {
 			},
 		}, expect: true},
 	}
-	p := permission.NewPermission(permission.WithRBACCanSSH(
+	p := rbac.NewPermission(rbac.WithRBACCanSSH(
 		map[lagoon.EnvironmentType][]lagoon.UserRole{
 			lagoon.Development: {
 				lagoon.Maintainer,

@@ -1,4 +1,4 @@
-package permission
+package rbac
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-const pkgName = "github.com/uselagoon/ssh-portal/internal/permission"
+const pkgName = "github.com/uselagoon/ssh-portal/internal/rbac"
 
 // Default permission map of environment type to roles which can SSH.
 //

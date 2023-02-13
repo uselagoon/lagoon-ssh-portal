@@ -11,7 +11,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/permission"
+	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.uber.org/zap"
 )
 
@@ -27,7 +27,7 @@ type LagoonDBService interface {
 
 // Serve contains the main ssh session logic
 func Serve(ctx context.Context, log *zap.Logger, l net.Listener,
-	p *permission.Permission, ldb *lagoondb.Client,
+	p *rbac.Permission, ldb *lagoondb.Client,
 	keycloakToken, keycloakPermission *keycloak.Client,
 	hostKeys [][]byte) error {
 	srv := ssh.Server{

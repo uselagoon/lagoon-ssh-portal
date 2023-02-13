@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/permission"
+	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.uber.org/zap"
 )
 
@@ -142,7 +142,7 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 // endpoint to use for ssh shell access. If the user doesn't have access to the
 // environment a generic error message is returned.
 func redirectSession(s ssh.Session, log *zap.Logger,
-	p *permission.Permission, keycloakUserInfo KeycloakUserInfoService,
+	p *rbac.Permission, keycloakUserInfo KeycloakUserInfoService,
 	ldb LagoonDBService, uid *uuid.UUID) {
 	sid := s.Context().SessionID()
 	// get the user roles and groups
@@ -286,7 +286,7 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 
 // sessionHandler returns a ssh.Handler which writes a Lagoon access token to
 // the session stream and then closes the connection.
-func sessionHandler(log *zap.Logger, p *permission.Permission,
+func sessionHandler(log *zap.Logger, p *rbac.Permission,
 	keycloakToken KeycloakTokenService,
 	keycloakPermission KeycloakUserInfoService,
 	ldb LagoonDBService) ssh.Handler {

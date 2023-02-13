@@ -1,5 +1,5 @@
-// Package permission contains permission logic for Lagoon.
-package permission
+// Package rbac contains permission logic for Lagoon.
+package rbac
 
 import "github.com/uselagoon/ssh-portal/internal/lagoon"
 
