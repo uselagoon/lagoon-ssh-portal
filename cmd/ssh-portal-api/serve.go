@@ -21,7 +21,7 @@ type ServeCmd struct {
 	APIDBDatabase        string `kong:"default='infrastructure',env='API_DB_DATABASE',help='Lagoon API DB Database Name'"`
 	APIDBPassword        string `kong:"required,env='API_DB_PASSWORD',help='Lagoon API DB Password'"`
 	APIDBUsername        string `kong:"default='api',env='API_DB_USERNAME',help='Lagoon API DB Username'"`
-	DeveloperCanSSH      bool   `kong:"default='true',env='DEVELOPER_CAN_SSH',help='Developer permission to SSH to Development environments'"`
+	BlockDeveloperSSH    bool   `kong:"env='BLOCK_DEVELOPER_SSH',help='Disallow Developer SSH access'"`
 	KeycloakBaseURL      string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
@@ -39,10 +39,10 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 	defer stop()
 	// init RBAC permission engine
 	var p *rbac.Permission
-	if cmd.DeveloperCanSSH {
-		p = rbac.NewPermission()
-	} else {
+	if cmd.BlockDeveloperSSH {
 		p = rbac.NewPermission(rbac.BlockDeveloperSSH())
+	} else {
+		p = rbac.NewPermission()
 	}
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
