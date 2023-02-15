@@ -1,4 +1,4 @@
-package permission
+package rbac
 
 import (
 	"context"
@@ -9,10 +9,20 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-const pkgName = "github.com/uselagoon/ssh-portal/internal/permission"
+const pkgName = "github.com/uselagoon/ssh-portal/internal/rbac"
 
-// map environment type to role which can SSH
-var envTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
+// Default permission map of environment type to roles which can SSH.
+//
+// By default:
+// - Developer and higher can SSH to development environments.
+// - Maintainer and higher can SSH to production environments.
+//
+// See https://docs.lagoon.sh/administering-lagoon/rbac/#group-roles for more
+// information.
+//
+// Note that this does not affect the platform-owner role, which can always SSH
+// to any environment.
+var defaultEnvTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
 	lagoon.Development: {
 		lagoon.Developer,
 		lagoon.Maintainer,
@@ -27,7 +37,7 @@ var envTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
 // UserCanSSHToEnvironment returns true if the given environment can be
 // connected to via SSH by the user with the given realm roles and user groups,
 // and false otherwise.
-func UserCanSSHToEnvironment(ctx context.Context, env *lagoondb.Environment,
+func (p *Permission) UserCanSSHToEnvironment(ctx context.Context, env *lagoondb.Environment,
 	realmRoles, userGroups []string, groupProjectIDs map[string][]int) bool {
 	// set up tracing
 	_, span := otel.Tracer(pkgName).Start(ctx, "UserCanSSHToEnvironment")
@@ -38,7 +48,7 @@ func UserCanSSHToEnvironment(ctx context.Context, env *lagoondb.Environment,
 			return true
 		}
 	}
-	validRoles := envTypeRoleCanSSH[env.Type]
+	validRoles := p.envTypeRoleCanSSH[env.Type]
 	// check if the user is directly a member of the project group and has the
 	// required role
 	var validProjectGroups []string

@@ -1,3 +1,4 @@
+// Package main is the executable ssh-portal-api service.
 package main
 
 import (

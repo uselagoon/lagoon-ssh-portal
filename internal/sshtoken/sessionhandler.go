@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/permission"
+	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.uber.org/zap"
 )
 
@@ -21,9 +21,9 @@ type KeycloakTokenService interface {
 	UserAccessToken(context.Context, *uuid.UUID) (string, error)
 }
 
-// KeycloakPermissionService provides methods for querying the Keycloak API for
+// KeycloakUserInfoService provides methods for querying the Keycloak API for
 // permission information contained in service-api user tokens.
-type KeycloakPermissionService interface {
+type KeycloakUserInfoService interface {
 	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string,
 		map[string][]int, error)
 }
@@ -60,7 +60,8 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 			zap.String("sessionID", sid),
 			zap.String("userUUID", uid.String()))
 		_, err := fmt.Fprintf(s.Stderr(),
-			"invalid command: only \"grant\" and \"token\" are supported. SID: %s\n", sid)
+			"invalid command: only \"grant\" and \"token\" are supported. SID: %s\r\n",
+			sid)
 		if err != nil {
 			log.Debug("couldn't write error message to session stream",
 				zap.String("sessionID", sid),
@@ -81,7 +82,7 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 				zap.String("userUUID", uid.String()),
 				zap.Error(err))
 			_, err = fmt.Fprintf(s.Stderr(),
-				"internal error. SID: %s\n", sid)
+				"internal error. SID: %s\r\n", sid)
 			if err != nil {
 				log.Debug("couldn't write error message to session stream",
 					zap.String("sessionID", sid),
@@ -98,7 +99,7 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 				zap.String("userUUID", uid.String()),
 				zap.Error(err))
 			_, err = fmt.Fprintf(s.Stderr(),
-				"internal error. SID: %s\n", sid)
+				"internal error. SID: %s\r\n", sid)
 			if err != nil {
 				log.Debug("couldn't write error message to session stream",
 					zap.String("sessionID", sid),
@@ -113,7 +114,8 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 			zap.String("sessionID", sid),
 			zap.String("userUUID", uid.String()))
 		_, err := fmt.Fprintf(s.Stderr(),
-			"invalid command: only \"grant\" and \"token\" are supported. SID: %s\n", sid)
+			"invalid command: only \"grant\" and \"token\" are supported. SID: %s\r\n",
+			sid)
 		if err != nil {
 			log.Debug("couldn't write error message to session stream",
 				zap.String("sessionID", sid),
@@ -123,7 +125,7 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 		return
 	}
 	// send response
-	_, err = fmt.Fprintf(s, "%s\n", response)
+	_, err = fmt.Fprintf(s, "%s\r\n", response)
 	if err != nil {
 		log.Debug("couldn't write response to session stream",
 			zap.String("sessionID", sid),
@@ -142,19 +144,19 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 // endpoint to use for ssh shell access. If the user doesn't have access to the
 // environment a generic error message is returned.
 func redirectSession(s ssh.Session, log *zap.Logger,
-	keycloakPermission KeycloakPermissionService, ldb LagoonDBService,
-	uid *uuid.UUID) {
+	p *rbac.Permission, keycloakUserInfo KeycloakUserInfoService,
+	ldb LagoonDBService, uid *uuid.UUID) {
 	sid := s.Context().SessionID()
 	// get the user roles and groups
 	realmRoles, userGroups, groupProjectIDs, err :=
-		keycloakPermission.UserRolesAndGroups(s.Context(), uid)
+		keycloakUserInfo.UserRolesAndGroups(s.Context(), uid)
 	if err != nil {
 		log.Error("couldn't query user roles and groups",
 			zap.String("sessionID", sid),
 			zap.String("userUUID", uid.String()),
 			zap.Error(err))
 		_, err = fmt.Fprintf(s.Stderr(),
-			"This SSH server does not provide shell access. SID: %s\n", sid)
+			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
 			log.Debug("couldn't write error message to session stream",
 				zap.String("sessionID", sid),
@@ -179,7 +181,7 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 				zap.Error(err))
 		}
 		_, err = fmt.Fprintf(s.Stderr(),
-			"This SSH server does not provide shell access. SID: %s\n", sid)
+			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
 			log.Debug("couldn't write error message to session stream",
 				zap.String("sessionID", sid),
@@ -188,8 +190,8 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		}
 		return
 	}
-	// calculate permission
-	ok := permission.UserCanSSHToEnvironment(s.Context(), env, realmRoles,
+	// check permission
+	ok := p.UserCanSSHToEnvironment(s.Context(), env, realmRoles,
 		userGroups, groupProjectIDs)
 	if !ok {
 		log.Info("user cannot SSH to environment",
@@ -206,7 +208,7 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 			zap.Strings("userGroups", userGroups),
 			zap.Any("groupProjectIDs", groupProjectIDs))
 		_, err = fmt.Fprintf(s.Stderr(),
-			"This SSH server does not provide shell access. SID: %s\n", sid)
+			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
 			log.Debug("couldn't write error message to session stream",
 				zap.String("sessionID", sid),
@@ -246,7 +248,7 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 				zap.Error(err))
 		}
 		_, err = fmt.Fprintf(s.Stderr(),
-			"This SSH server does not provide shell access. SID: %s\n", sid)
+			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
 			log.Debug("couldn't write error message to session stream",
 				zap.String("sessionID", sid),
@@ -256,16 +258,16 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		return
 	}
 	preamble :=
-		"This SSH server does not provide shell access to your environment.\n" +
-			"To SSH into your environment use this endpoint:\n\n"
+		"This SSH server does not provide shell access to your environment.\r\n" +
+			"To SSH into your environment use this endpoint:\r\n\n"
 	// send response
 	if sshPort == "22" {
 		_, err = fmt.Fprintf(s.Stderr(),
-			preamble+"\tssh %s@%s\n\nSID: %s\n",
+			preamble+"\tssh %s@%s\r\n\nSID: %s\r\n",
 			s.User(), sshHost, sid)
 	} else {
 		_, err = fmt.Fprintf(s.Stderr(),
-			preamble+"\tssh -p %s %s@%s\n\nSID: %s\n",
+			preamble+"\tssh -p %s %s@%s\r\n\nSID: %s\r\n",
 			sshPort, s.User(), sshHost, sid)
 	}
 	if err != nil {
@@ -286,8 +288,9 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 
 // sessionHandler returns a ssh.Handler which writes a Lagoon access token to
 // the session stream and then closes the connection.
-func sessionHandler(log *zap.Logger, keycloakToken KeycloakTokenService,
-	keycloakPermission KeycloakPermissionService,
+func sessionHandler(log *zap.Logger, p *rbac.Permission,
+	keycloakToken KeycloakTokenService,
+	keycloakPermission KeycloakUserInfoService,
 	ldb LagoonDBService) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
@@ -296,7 +299,7 @@ func sessionHandler(log *zap.Logger, keycloakToken KeycloakTokenService,
 		if !ok {
 			log.Warn("couldn't get user UUID from context",
 				zap.String("sessionID", s.Context().SessionID()))
-			_, err := fmt.Fprintf(s.Stderr(), "internal error. SID: %s\n",
+			_, err := fmt.Fprintf(s.Stderr(), "internal error. SID: %s\r\n",
 				s.Context().SessionID())
 			if err != nil {
 				log.Debug("couldn't write error message to session stream",
@@ -308,7 +311,7 @@ func sessionHandler(log *zap.Logger, keycloakToken KeycloakTokenService,
 		if s.User() == "lagoon" {
 			tokenSession(s, log, keycloakToken, uid)
 		} else {
-			redirectSession(s, log, keycloakPermission, ldb, uid)
+			redirectSession(s, log, p, keycloakPermission, ldb, uid)
 		}
 	}
 }
