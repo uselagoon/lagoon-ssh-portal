@@ -111,6 +111,13 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				zap.Error(err))
 			return
 		}
+		log.Debug("keycloak user attributes",
+			zap.Strings("realmRoles", realmRoles),
+			zap.Strings("userGroups", userGroups),
+			zap.Any("groupProjectIDs", groupProjectIDs),
+			zap.String("userUUID", user.UUID.String()),
+			zap.String("sessionID", query.SessionID),
+		)
 		// check permission
 		ok := p.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
 			groupProjectIDs)
