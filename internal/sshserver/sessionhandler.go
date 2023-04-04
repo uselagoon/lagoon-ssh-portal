@@ -19,7 +19,9 @@ var (
 	})
 )
 
-func sshifyCommand(sftp bool, cmd []string) []string {
+// getSSHIntent analyses the SFTP flag and the raw command strings to determine
+// if the command should be wrapped.
+func getSSHIntent(sftp bool, cmd []string) []string {
 	// if this is an sftp session we ignore any commands
 	if sftp {
 		return []string{"sftp-server", "-u", "0002"}
@@ -45,7 +47,8 @@ func sshifyCommand(sftp bool, cmd []string) []string {
 func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
-		sid := s.Context().SessionID()
+		ctx := s.Context()
+		sid := ctx.SessionID()
 		// start the command
 		log.Debug("starting command exec",
 			zap.String("sessionID", sid),
@@ -53,8 +56,8 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			zap.String("subsystem", s.Subsystem()),
 		)
 		// parse the command line arguments to extract any service or container args
-		service, container, cmd := parseConnectionParams(s.Command())
-		cmd = sshifyCommand(sftp, cmd)
+		service, container, rawCmd := parseConnectionParams(s.Command())
+		cmd := getSSHIntent(sftp, rawCmd)
 		// validate the service and container
 		if err := k8s.ValidateLabelValue(service); err != nil {
 			log.Debug("invalid service name",
@@ -85,7 +88,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			return
 		}
 		// find the deployment name based on the given service name
-		deployment, err := c.FindDeployment(s.Context(), s.User(), service)
+		deployment, err := c.FindDeployment(ctx, s.User(), service)
 		if err != nil {
 			log.Debug("couldn't find deployment for service",
 				zap.String("service", service),
@@ -103,7 +106,6 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		// check if a pty was requested, and get the window size channel
 		_, winch, pty := s.Pty()
 		// extract info passed through the context by the authhandler
-		ctx := s.Context()
 		eid, ok := ctx.Value(environmentIDKey).(int)
 		if !ok {
 			log.Warn("couldn't extract environment ID from session context")
@@ -137,7 +139,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			zap.String("sessionID", sid),
 			zap.Strings("command", cmd),
 		)
-		err = c.Exec(s.Context(), s.User(), deployment, container, cmd, s,
+		err = c.Exec(ctx, s.User(), deployment, container, cmd, s,
 			s.Stderr(), pty, winch)
 		if err != nil {
 			if exitErr, ok := err.(exec.ExitError); ok {

@@ -111,21 +111,32 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 				zap.Error(err))
 			return
 		}
+		log.Debug("keycloak user attributes",
+			zap.Strings("realmRoles", realmRoles),
+			zap.Strings("userGroups", userGroups),
+			zap.Any("groupProjectIDs", groupProjectIDs),
+			zap.String("userUUID", user.UUID.String()),
+			zap.String("sessionID", query.SessionID),
+		)
 		// check permission
 		ok := p.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
 			groupProjectIDs)
+		var logMsg string
 		if ok {
-			log.Info("validated SSH access",
-				zap.Int("environmentID", env.ID),
-				zap.Int("projectID", env.ProjectID),
-				zap.String("SSHFingerprint", query.SSHFingerprint),
-				zap.String("environmentName", env.Name),
-				zap.String("namespace", query.NamespaceName),
-				zap.String("projectName", env.ProjectName),
-				zap.String("sessionID", query.SessionID),
-				zap.String("userUUID", user.UUID.String()),
-			)
+			logMsg = "SSH access authorized"
+		} else {
+			logMsg = "SSH access not authorized"
 		}
+		log.Info(logMsg,
+			zap.Int("environmentID", env.ID),
+			zap.Int("projectID", env.ProjectID),
+			zap.String("SSHFingerprint", query.SSHFingerprint),
+			zap.String("environmentName", env.Name),
+			zap.String("namespace", query.NamespaceName),
+			zap.String("projectName", env.ProjectName),
+			zap.String("sessionID", query.SessionID),
+			zap.String("userUUID", user.UUID.String()),
+		)
 		if err = c.Publish(replySubject, ok); err != nil {
 			log.Error("couldn't publish reply",
 				zap.Any("query", query),
