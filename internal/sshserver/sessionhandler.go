@@ -47,7 +47,8 @@ func getSSHIntent(sftp bool, cmd []string) []string {
 func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
-		sid := s.Context().SessionID()
+		ctx := s.Context()
+		sid := ctx.SessionID()
 		// start the command
 		log.Debug("starting command exec",
 			zap.String("sessionID", sid),
@@ -87,7 +88,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			return
 		}
 		// find the deployment name based on the given service name
-		deployment, err := c.FindDeployment(s.Context(), s.User(), service)
+		deployment, err := c.FindDeployment(ctx, s.User(), service)
 		if err != nil {
 			log.Debug("couldn't find deployment for service",
 				zap.String("service", service),
@@ -105,7 +106,6 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 		// check if a pty was requested, and get the window size channel
 		_, winch, pty := s.Pty()
 		// extract info passed through the context by the authhandler
-		ctx := s.Context()
 		eid, ok := ctx.Value(environmentIDKey).(int)
 		if !ok {
 			log.Warn("couldn't extract environment ID from session context")
@@ -139,7 +139,7 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			zap.String("sessionID", sid),
 			zap.Strings("command", cmd),
 		)
-		err = c.Exec(s.Context(), s.User(), deployment, container, cmd, s,
+		err = c.Exec(ctx, s.User(), deployment, container, cmd, s,
 			s.Stderr(), pty, winch)
 		if err != nil {
 			if exitErr, ok := err.(exec.ExitError); ok {

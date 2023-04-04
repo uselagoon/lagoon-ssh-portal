@@ -198,6 +198,10 @@ func (c *Client) Exec(ctx context.Context, namespace, deployment,
 	if err != nil {
 		return fmt.Errorf("couldn't get executor: %v", err)
 	}
+	// Ensure the TerminalSizeQueue goroutine is cancelled immediately after
+	// command exection completes by deferring its cancellation here.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	// execute the command
 	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             stdio,
