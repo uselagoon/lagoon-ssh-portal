@@ -70,9 +70,8 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 			SessionID:      ctx.SessionID(),
 		}
 		// send query
-		var response bool
-		err = nc.Request(sshportalapi.SubjectSSHAccessQuery, q, &response,
-			natsTimeout)
+		var ok bool
+		err = nc.Request(sshportalapi.SubjectSSHAccessQuery, q, &ok, natsTimeout)
 		if err != nil {
 			log.Warn("couldn't make NATS request",
 				zap.String("sessionID", ctx.SessionID()),
@@ -80,19 +79,23 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 			return false
 		}
 		// handle response
-		if response {
-			authSuccessTotal.Inc()
-			ctx.SetValue(environmentIDKey, eid)
-			ctx.SetValue(environmentNameKey, ename)
-			ctx.SetValue(projectIDKey, pid)
-			ctx.SetValue(projectNameKey, pname)
-			ctx.SetValue(sshFingerprint, fingerprint)
-			log.Debug("Lagoon authorization granted",
+		if !ok {
+			log.Debug("SSH access not authorized",
 				zap.String("sessionID", ctx.SessionID()),
 				zap.String("fingerprint", fingerprint),
 				zap.String("namespace", ctx.User()))
-			return true
+			return false
 		}
-		return false
+		authSuccessTotal.Inc()
+		ctx.SetValue(environmentIDKey, eid)
+		ctx.SetValue(environmentNameKey, ename)
+		ctx.SetValue(projectIDKey, pid)
+		ctx.SetValue(projectNameKey, pname)
+		ctx.SetValue(sshFingerprint, fingerprint)
+		log.Debug("SSH access authorized",
+			zap.String("sessionID", ctx.SessionID()),
+			zap.String("fingerprint", fingerprint),
+			zap.String("namespace", ctx.User()))
+		return true
 	}
 }
