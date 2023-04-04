@@ -19,7 +19,9 @@ var (
 	})
 )
 
-func sshifyCommand(sftp bool, cmd []string) []string {
+// getSSHIntent analyses the SFTP flag and the raw command strings to determine
+// if the command should be wrapped.
+func getSSHIntent(sftp bool, cmd []string) []string {
 	// if this is an sftp session we ignore any commands
 	if sftp {
 		return []string{"sftp-server", "-u", "0002"}
@@ -53,8 +55,8 @@ func sessionHandler(log *zap.Logger, c *k8s.Client, sftp bool) ssh.Handler {
 			zap.String("subsystem", s.Subsystem()),
 		)
 		// parse the command line arguments to extract any service or container args
-		service, container, cmd := parseConnectionParams(s.Command())
-		cmd = sshifyCommand(sftp, cmd)
+		service, container, rawCmd := parseConnectionParams(s.Command())
+		cmd := getSSHIntent(sftp, rawCmd)
 		// validate the service and container
 		if err := k8s.ValidateLabelValue(service); err != nil {
 			log.Debug("invalid service name",
