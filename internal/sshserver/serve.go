@@ -12,7 +12,23 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"go.uber.org/zap"
+	gossh "golang.org/x/crypto/ssh"
 )
+
+// disableSHA1Kex returns a ServerConfig which relies on default for everything
+// except key exchange algorithms. There it removes the SHA1 based algorithms.
+func disableSHA1Kex(ctx ssh.Context) *gossh.ServerConfig {
+	c := gossh.ServerConfig{}
+	c.Config.KeyExchanges = []string{
+		"curve25519-sha256",
+		"curve25519-sha256@libssh.org",
+		"ecdh-sha2-nistp256",
+		"ecdh-sha2-nistp384",
+		"ecdh-sha2-nistp521",
+		"diffie-hellman-group14-sha256",
+	}
+	return &c
+}
 
 // Serve contains the main ssh session logic
 func Serve(ctx context.Context, log *zap.Logger, nc *nats.EncodedConn,
@@ -22,7 +38,8 @@ func Serve(ctx context.Context, log *zap.Logger, nc *nats.EncodedConn,
 		SubsystemHandlers: map[string]ssh.SubsystemHandler{
 			"sftp": ssh.SubsystemHandler(sessionHandler(log, c, true)),
 		},
-		PublicKeyHandler: pubKeyAuth(log, nc, c),
+		PublicKeyHandler:     pubKeyAuth(log, nc, c),
+		ServerConfigCallback: disableSHA1Kex,
 	}
 	for _, hk := range hostKeys {
 		if err := srv.SetOption(ssh.HostKeyPEM(hk)); err != nil {
