@@ -132,7 +132,7 @@ func (c *Client) ensureScaled(ctx context.Context, namespace, deployment string)
 		}
 	}
 	// wait for a pod to start running
-	return wait.PollImmediateWithContext(ctx, time.Second, timeout,
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true,
 		c.hasRunningPod(ctx, namespace, deployment))
 }
 
