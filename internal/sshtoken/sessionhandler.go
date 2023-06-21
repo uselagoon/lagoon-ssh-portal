@@ -2,15 +2,17 @@ package sshtoken
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/rbac"
+	llib "github.com/uselagoon/machinery/api/lagoon"
+	lclient "github.com/uselagoon/machinery/api/lagoon/client"
+	"github.com/uselagoon/machinery/utils/jwt"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"go.uber.org/zap"
 )
 
@@ -19,13 +21,6 @@ import (
 type KeycloakTokenService interface {
 	UserAccessTokenResponse(context.Context, *uuid.UUID) (string, error)
 	UserAccessToken(context.Context, *uuid.UUID) (string, error)
-}
-
-// KeycloakUserInfoService provides methods for querying the Keycloak API for
-// permission information contained in service-api user tokens.
-type KeycloakUserInfoService interface {
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string,
-		map[string][]int, error)
 }
 
 var (
@@ -144,12 +139,11 @@ func tokenSession(s ssh.Session, log *zap.Logger,
 // endpoint to use for ssh shell access. If the user doesn't have access to the
 // environment a generic error message is returned.
 func redirectSession(s ssh.Session, log *zap.Logger,
-	p *rbac.Permission, keycloakUserInfo KeycloakUserInfoService,
-	ldb LagoonDBService, uid *uuid.UUID) {
+	keycloakUserInfo KeycloakTokenService, lconf lagoon.LagoonClientConfig,
+	uid *uuid.UUID) {
 	sid := s.Context().SessionID()
-	// get the user roles and groups
-	realmRoles, userGroups, groupProjectIDs, err :=
-		keycloakUserInfo.UserRolesAndGroups(s.Context(), uid)
+	// get the users token
+	userToken, err := keycloakUserInfo.UserAccessToken(s.Context(), uid)
 	if err != nil {
 		log.Error("couldn't query user roles and groups",
 			zap.String("sessionID", sid),
@@ -165,21 +159,27 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		}
 		return
 	}
-	env, err := ldb.EnvironmentByNamespaceName(s.Context(), s.User())
+	// set up a lagoon client for use in the following process
+	token, err := jwt.GenerateAdminToken(lconf.JWTToken, lconf.JWTAudience, "ssh-portal-api", "ssh-portal-api", time.Now().Unix(), 60)
 	if err != nil {
-		if errors.Is(err, lagoondb.ErrNoResult) {
-			log.Info("unknown namespace name",
-				zap.String("namespaceName", s.User()),
-				zap.String("userUUID", uid.String()),
-				zap.String("sessionID", sid),
-				zap.Error(err))
-		} else {
-			log.Error("couldn't get environment by namespace name",
-				zap.String("namespaceName", s.User()),
-				zap.String("userUUID", uid.String()),
-				zap.String("sessionID", sid),
-				zap.Error(err))
-		}
+		// the token wasn't generated
+		log.Error("couldn't generate jwt token",
+			zap.Error(err))
+		return
+	}
+	lc := lclient.New(lconf.APIGraphqlEndpoint, "ssh-portal-api", &token, false)
+	env, err := llib.GetEnvironmentByNamespace(s.Context(), s.User(), lc)
+	if err != nil {
+		log.Error("couldn't query environment",
+			zap.Any("query", s.User()), zap.Error(err))
+		return
+	}
+	if err != nil {
+		log.Error("couldn't get environment by namespace name",
+			zap.String("namespaceName", s.User()),
+			zap.String("userUUID", uid.String()),
+			zap.String("sessionID", sid),
+			zap.Error(err))
 		_, err = fmt.Fprintf(s.Stderr(),
 			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
@@ -191,22 +191,22 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		return
 	}
 	// check permission
-	ok := p.UserCanSSHToEnvironment(s.Context(), env, realmRoles,
-		userGroups, groupProjectIDs)
+	lc = lclient.New(lconf.APIGraphqlEndpoint, "ssh-portal-api-user-request", &userToken, false)
+	_, err = llib.UserCanSSHToEnvironment(s.Context(), s.User(), lc)
+	ok := false
+	if err == nil {
+		ok = true
+	}
 	if !ok {
 		log.Info("user cannot SSH to environment",
-			zap.Int("environmentID", env.ID),
-			zap.Int("projectID", env.ProjectID),
+			zap.Uint("environmentID", env.ID),
+			zap.Uint("projectID", env.ProjectID),
 			zap.String("environmentName", env.Name),
 			zap.String("namespace", s.User()),
-			zap.String("projectName", env.ProjectName),
 			zap.String("sessionID", sid),
 			zap.String("userUUID", uid.String()))
 		log.Debug("user permissions",
-			zap.String("userUUID", uid.String()),
-			zap.Strings("realmRoles", realmRoles),
-			zap.Strings("userGroups", userGroups),
-			zap.Any("groupProjectIDs", groupProjectIDs))
+			zap.String("userUUID", uid.String()))
 		_, err = fmt.Fprintf(s.Stderr(),
 			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
@@ -218,35 +218,23 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		return
 	}
 	log.Info("user can SSH to environment",
-		zap.Int("environmentID", env.ID),
-		zap.Int("projectID", env.ProjectID),
+		zap.Uint("environmentID", env.ID),
+		zap.Uint("projectID", env.ProjectID),
 		zap.String("environmentName", env.Name),
 		zap.String("namespace", s.User()),
-		zap.String("projectName", env.ProjectName),
 		zap.String("sessionID", sid),
 		zap.String("userUUID", uid.String()))
 	log.Debug("user permissions",
-		zap.String("userUUID", uid.String()),
-		zap.Strings("realmRoles", realmRoles),
-		zap.Strings("userGroups", userGroups),
-		zap.Any("groupProjectIDs", groupProjectIDs))
-	sshHost, sshPort, err := ldb.SSHEndpointByEnvironmentID(s.Context(), env.ID)
+		zap.String("userUUID", uid.String()))
+
+	sshEndpoint, err := llib.SSHEndpointByNamespace(s.Context(), s.User(), lc)
 	if err != nil {
-		if errors.Is(err, lagoondb.ErrNoResult) {
-			log.Warn("no results for ssh endpoint by environment ID",
-				zap.String("namespaceName", s.User()),
-				zap.String("userUUID", uid.String()),
-				zap.String("sessionID", sid),
-				zap.Int("environmentID", env.ID),
-				zap.Error(err))
-		} else {
-			log.Error("couldn't get ssh endpoint by environment ID",
-				zap.String("namespaceName", s.User()),
-				zap.String("userUUID", uid.String()),
-				zap.String("sessionID", sid),
-				zap.Int("environmentID", env.ID),
-				zap.Error(err))
-		}
+		log.Error("couldn't get ssh endpoint by environment ID",
+			zap.String("namespaceName", s.User()),
+			zap.String("userUUID", uid.String()),
+			zap.String("sessionID", sid),
+			zap.Uint("environmentID", env.ID),
+			zap.Error(err))
 		_, err = fmt.Fprintf(s.Stderr(),
 			"This SSH server does not provide shell access. SID: %s\r\n", sid)
 		if err != nil {
@@ -261,14 +249,14 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		"This SSH server does not provide shell access to your environment.\r\n" +
 			"To SSH into your environment use this endpoint:\r\n\n"
 	// send response
-	if sshPort == "22" {
+	if sshEndpoint.DeployTarget.SSHHost == "22" {
 		_, err = fmt.Fprintf(s.Stderr(),
 			preamble+"\tssh %s@%s\r\n\nSID: %s\r\n",
-			s.User(), sshHost, sid)
+			s.User(), sshEndpoint.DeployTarget.SSHHost, sid)
 	} else {
 		_, err = fmt.Fprintf(s.Stderr(),
 			preamble+"\tssh -p %s %s@%s\r\n\nSID: %s\r\n",
-			sshPort, s.User(), sshHost, sid)
+			sshEndpoint.DeployTarget.SSHPort, s.User(), sshEndpoint.DeployTarget.SSHHost, sid)
 	}
 	if err != nil {
 		log.Debug("couldn't write response to session stream",
@@ -282,16 +270,15 @@ func redirectSession(s ssh.Session, log *zap.Logger,
 		zap.String("sessionID", sid),
 		zap.String("namespaceName", s.User()),
 		zap.String("userUUID", uid.String()),
-		zap.String("sshHost", sshHost),
-		zap.String("sshPort", sshPort))
+		zap.String("sshHost", sshEndpoint.DeployTarget.SSHHost),
+		zap.String("sshPort", sshEndpoint.DeployTarget.SSHPort))
 }
 
 // sessionHandler returns a ssh.Handler which writes a Lagoon access token to
 // the session stream and then closes the connection.
-func sessionHandler(log *zap.Logger, p *rbac.Permission,
+func sessionHandler(log *zap.Logger,
 	keycloakToken KeycloakTokenService,
-	keycloakPermission KeycloakUserInfoService,
-	ldb LagoonDBService) ssh.Handler {
+	lconf lagoon.LagoonClientConfig) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
 		// extract required info from the session context
@@ -311,7 +298,7 @@ func sessionHandler(log *zap.Logger, p *rbac.Permission,
 		if s.User() == "lagoon" {
 			tokenSession(s, log, keycloakToken, uid)
 		} else {
-			redirectSession(s, log, p, keycloakPermission, ldb, uid)
+			redirectSession(s, log, keycloakToken, lconf, uid)
 		}
 	}
 }

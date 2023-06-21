@@ -9,8 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
-	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/rbac"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"go.uber.org/zap"
 )
 
@@ -19,20 +18,15 @@ const (
 	pkgName = "github.com/uselagoon/ssh-portal/internal/sshportalapi"
 )
 
-// LagoonDBService provides methods for querying the Lagoon API DB.
-type LagoonDBService interface {
-	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
-	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
-}
-
-// KeycloakService provides methods for querying the Keycloak API.
-type KeycloakService interface {
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, map[string][]int, error)
+// KeycloakTokenService provides methods for querying the Keycloak API for user
+// access tokens.
+type KeycloakTokenService interface {
+	UserAccessToken(context.Context, *uuid.UUID) (string, error)
 }
 
 // ServeNATS sshportalapi NATS requests.
 func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
-	p *rbac.Permission, l LagoonDBService, k KeycloakService, natsURL string) error {
+	k KeycloakTokenService, lconf lagoon.LagoonClientConfig, natsURL string) error {
 	// setup synchronisation
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -61,7 +55,7 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	defer nc.Close()
 	// set up request/response callback for sshportal
 	_, err = nc.QueueSubscribe(SubjectSSHAccessQuery, queue,
-		sshportal(ctx, log, nc, p, l, k))
+		sshportal(ctx, log, nc, k, lconf))
 	if err != nil {
 		return fmt.Errorf("couldn't subscribe to queue: %v", err)
 	}
