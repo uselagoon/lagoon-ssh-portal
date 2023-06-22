@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/alecthomas/assert/v2 v2.3.0
-	github.com/alecthomas/kong v0.7.1
+	github.com/alecthomas/kong v0.8.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang-jwt/jwt/v4 v4.5.0
