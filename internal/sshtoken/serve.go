@@ -10,29 +10,20 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
-	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"github.com/uselagoon/ssh-portal/internal/rbac"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"go.uber.org/zap"
 )
 
 // give an 8 second deadline to shut down cleanly.
 const shutdownTimeout = 8 * time.Second
 
-// LagoonDBService provides methods for querying the Lagoon API DB.
-type LagoonDBService interface {
-	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
-	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
-	SSHEndpointByEnvironmentID(context.Context, int) (string, string, error)
-}
-
 // Serve contains the main ssh session logic
 func Serve(ctx context.Context, log *zap.Logger, l net.Listener,
-	p *rbac.Permission, ldb *lagoondb.Client,
-	keycloakToken, keycloakPermission *keycloak.Client,
+	keycloakToken *keycloak.Client, lconf lagoon.LagoonClientConfig,
 	hostKeys [][]byte) error {
 	srv := ssh.Server{
-		Handler:          sessionHandler(log, p, keycloakToken, keycloakPermission, ldb),
-		PublicKeyHandler: pubKeyAuth(log, ldb),
+		Handler:          sessionHandler(log, keycloakToken, lconf),
+		PublicKeyHandler: pubKeyAuth(log, lconf),
 	}
 	for _, hk := range hostKeys {
 		if err := srv.SetOption(ssh.HostKeyPEM(hk)); err != nil {
