@@ -43,6 +43,8 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't get user token: %v", err)
 	}
+	fmt.Println("user access token:")
+	fmt.Println(userToken.AccessToken)
 	// parse and extract verified attributes
 	claims, err := c.validateTokenClaims(userToken)
 	if err != nil {
