@@ -39,7 +39,8 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 		oauth2.SetAuthURLParam("grant_type",
 			"urn:ietf:params:oauth:grant-type:token-exchange"),
 		// https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange
-		oauth2.SetAuthURLParam("requested_subject", userUUID.String()))
+		oauth2.SetAuthURLParam("requested_subject", userUUID.String()),
+		oauth2.SetAuthURLParam("audience", c.clientID))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("couldn't get user token: %v", err)
 	}
