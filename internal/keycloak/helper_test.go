@@ -11,3 +11,8 @@ func (c *Client) ValidateToken(t *oauth2.Token, sub string,
 	opts ...jwt.ParserOption) (*LagoonClaims, error) {
 	return c.parseAccessToken(t, sub, opts...)
 }
+
+// SetClientID sets the Client ID for testing.
+func (l *LagoonClaims) SetClientID(clientID string) {
+	l.clientID = clientID
+}

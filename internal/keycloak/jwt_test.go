@@ -1,6 +1,7 @@
 package keycloak_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -136,6 +137,18 @@ func TestValidateTokenClaims(t *testing.T) {
 	// set up logger
 	log := zap.Must(zap.NewDevelopment())
 	// set up test cases
+	validClaims := keycloak.LagoonClaims{
+		AuthorizedParty: "auth-server",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "http://lagoon-core-keycloak:8080/auth/realms/lagoon",
+			Subject:   "7bc982a1-c90a-4229-8b5f-816c18d9dfbc",
+			Audience:  jwt.ClaimStrings{"account"},
+			ExpiresAt: jwt.NewNumericDate(time.Date(2022, time.November, 14, 15, 20, 44, 0, time.UTC).In(time.Local)),
+			IssuedAt:  jwt.NewNumericDate(time.Date(2022, time.November, 14, 15, 15, 44, 0, time.UTC).In(time.Local)),
+			ID:        "b70c4250-a419-40f1-8e3a-a87c56f2c4a3",
+		},
+	}
+	validClaims.SetClientID("auth-server")
 	var testCases = map[string]struct {
 		input          *oauth2.Token
 		validationTime time.Time
@@ -147,18 +160,8 @@ func TestValidateTokenClaims(t *testing.T) {
 				AccessToken: "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJrd0ZLNVlwMlI3QkxZalc4Z1NZNkxzQjNsSVlzcFI1TmlFdW5GRUdxZGdnIn0.eyJleHAiOjE2Njg0MzkyNDQsImlhdCI6MTY2ODQzODk0NCwianRpIjoiYjcwYzQyNTAtYTQxOS00MGYxLThlM2EtYTg3YzU2ZjJjNGEzIiwiaXNzIjoiaHR0cDovL2xhZ29vbi1jb3JlLWtleWNsb2FrOjgwODAvYXV0aC9yZWFsbXMvbGFnb29uIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjdiYzk4MmExLWM5MGEtNDIyOS04YjVmLTgxNmMxOGQ5ZGZiYyIsInR5cCI6IkJlYXJlciIsImF6cCI6ImF1dGgtc2VydmVyIiwic2Vzc2lvbl9zdGF0ZSI6ImViZWNlNTAxLWIzMWUtNDBiNy1iMWIwLTU4MjhkYWY0ZmE3OSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsicGxhdGZvcm0tb3duZXIiLCJvZmZsaW5lX2FjY2VzcyIsImFkbWluIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6ImVtYWlsIHByb2ZpbGUiLCJzaWQiOiJlYmVjZTUwMS1iMzFlLTQwYjctYjFiMC01ODI4ZGFmNGZhNzkiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInByZWZlcnJlZF91c2VybmFtZSI6ImxhZ29vbmFkbWluIn0.GaVMQSKpZldYpY0bmNVY1EJKf8pZVq8bps1-xPLQvWn2KlnjkVFKMuE34j66HRKJ3ZJybDyCkBAIr2ImzunFy5_ur9GdXRBHOo5RtnpNL9YxGwUTWNAtTqOqXMi4QkY4AHfMkgHAhZRSMP3oADjiv2hOkIeummTXo6KTY7fOmumz1UkvRyfeWt-6tcSWrCBezvuMXhwJUF7_EuEPdLaNpiQ_H1wqhamHg1YZ6QzJ5z7NcD8f6dc-h7qUhTBlMGOGEeWThmxudrzOuHkcx6LBzutzPdQNhTo7d2PsAa4igz3RXZV65BBVMkqp8v8k1ZIxb2a_6DHngd2T-XDjzNFREQ",
 			},
 			validationTime: time.Date(2022, time.November, 14, 15, 16, 0, 0, time.UTC),
-			expectClaims: &keycloak.LagoonClaims{
-				AuthorizedParty: "auth-server",
-				RegisteredClaims: jwt.RegisteredClaims{
-					Issuer:    "http://lagoon-core-keycloak:8080/auth/realms/lagoon",
-					Subject:   "7bc982a1-c90a-4229-8b5f-816c18d9dfbc",
-					Audience:  jwt.ClaimStrings{"account"},
-					ExpiresAt: jwt.NewNumericDate(time.Date(2022, time.November, 14, 15, 20, 44, 0, time.UTC).In(time.Local)),
-					IssuedAt:  jwt.NewNumericDate(time.Date(2022, time.November, 14, 15, 15, 44, 0, time.UTC).In(time.Local)),
-					ID:        "b70c4250-a419-40f1-8e3a-a87c56f2c4a3",
-				},
-			},
-			expectError: false,
+			expectClaims:   &validClaims,
+			expectError:    false,
 		},
 		"invalid signature (last 5 chars)": {
 			input: &oauth2.Token{
@@ -206,14 +209,28 @@ func TestValidateTokenClaims(t *testing.T) {
 			expectError:    true,
 		},
 	}
-	// init client
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			// start mock keycloak server to serve the realm metadata (including the
-			// RSA public key) during keycloak.NewClient().
-			ts := httptest.NewServer(
-				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					f, err := os.Open("testdata/realm.metadata.json")
+			// load the discovery JSON first, because the mux closure needs to
+			// reference its buffer
+			discoveryBuf, err := os.ReadFile("testdata/realm.oidc.discovery.json")
+			if err != nil {
+				tt.Fatal(err)
+				return
+			}
+			// configure router with the URLs that OIDC discovery and JWKS require
+			mux := http.NewServeMux()
+			mux.HandleFunc("/auth/realms/lagoon/.well-known/openid-configuration",
+				func(w http.ResponseWriter, r *http.Request) {
+					d := bytes.NewBuffer(discoveryBuf)
+					_, err = io.Copy(w, d)
+					if err != nil {
+						tt.Fatal(err)
+					}
+				})
+			mux.HandleFunc("/auth/realms/lagoon/protocol/openid-connect/certs",
+				func(w http.ResponseWriter, r *http.Request) {
+					f, err := os.Open("testdata/realm.oidc.certs.json")
 					if err != nil {
 						tt.Fatal(err)
 						return
@@ -222,10 +239,17 @@ func TestValidateTokenClaims(t *testing.T) {
 					if err != nil {
 						tt.Fatal(err)
 					}
-				}))
+				})
+			// start mock keycloak server to serve the realm oidc certs (including the
+			// RSA public key) during keycloak.NewClient().
+			ts := httptest.NewServer(mux)
 			defer ts.Close()
+			// now replace the example URL in the discovery JSON with the actual
+			// httptest server URL
+			discoveryBuf = bytes.ReplaceAll(discoveryBuf,
+				[]byte("https://keycloak.example.com"), []byte(ts.URL))
 			// init keycloak client
-			// note: client secret is empty because it isn't used in this test, but
+			// NOTE: client secret is empty because it isn't used in this test, but
 			// client ID is checked against azp in the token.
 			k, err := keycloak.NewClient(context.Background(), log, ts.URL,
 				"auth-server", "")
@@ -233,7 +257,7 @@ func TestValidateTokenClaims(t *testing.T) {
 				tt.Fatal(err)
 			}
 			// run the validation
-			claims, err := k.ValidateToken(tc.input, "sub",
+			claims, err := k.ValidateToken(tc.input, "7bc982a1-c90a-4229-8b5f-816c18d9dfbc",
 				jwt.WithTimeFunc(func() time.Time { return tc.validationTime }))
 			// check the response
 			if tc.expectError {
