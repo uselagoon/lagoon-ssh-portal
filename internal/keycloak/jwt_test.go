@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/assert/v2"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -232,10 +232,9 @@ func TestValidateTokenClaims(t *testing.T) {
 			if err != nil {
 				tt.Fatal(err)
 			}
-			// set the jwt package time for validation
-			jwt.TimeFunc = func() time.Time { return tc.validationTime }
 			// run the validation
-			claims, err := k.ValidateTokenClaims(tc.input)
+			claims, err := k.ValidateToken(tc.input, "sub",
+				jwt.WithTimeFunc(func() time.Time { return tc.validationTime }))
 			// check the response
 			if tc.expectError {
 				assert.Error(tt, err)

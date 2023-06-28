@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,18 +18,15 @@ func (c *Client) getUserToken(ctx context.Context,
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "getUserToken")
 	defer span.End()
 	// get user token
-	tokenURL := *c.baseURL
-	tokenURL.Path = path.Join(tokenURL.Path,
-		`/auth/realms/lagoon/protocol/openid-connect/token`)
 	userConfig := oauth2.Config{
 		ClientID:     c.clientID,
 		ClientSecret: c.clientSecret,
 		Endpoint: oauth2.Endpoint{
-			TokenURL: tokenURL.String(),
+			TokenURL: c.oidcConfig.TokenEndpoint,
 		},
 	}
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 8 * time.Second,
 	})
 	userToken, err := userConfig.Exchange(ctx, "",
 		// https://datatracker.ietf.org/doc/html/rfc8693#section-2.1
@@ -42,9 +38,9 @@ func (c *Client) getUserToken(ctx context.Context,
 		return nil, fmt.Errorf("couldn't get user token: %v", err)
 	}
 	// parse and extract verified attributes
-	_, err = c.validateTokenClaims(userToken)
+	_, err = c.parseAccessToken(userToken, userUUID.String())
 	if err != nil {
-		return nil, fmt.Errorf("couldn't validate token claims: %v", err)
+		return nil, fmt.Errorf("couldn't parse user access token: %v", err)
 	}
 	return userToken, nil
 }
