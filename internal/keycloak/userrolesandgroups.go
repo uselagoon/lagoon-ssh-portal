@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,14 +20,11 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserRolesAndGroups")
 	defer span.End()
 	// get user token
-	tokenURL := *c.baseURL
-	tokenURL.Path = path.Join(tokenURL.Path,
-		`/auth/realms/lagoon/protocol/openid-connect/token`)
 	userConfig := oauth2.Config{
 		ClientID:     c.clientID,
 		ClientSecret: c.clientSecret,
 		Endpoint: oauth2.Endpoint{
-			TokenURL: tokenURL.String(),
+			TokenURL: c.oidcConfig.TokenEndpoint,
 		},
 	}
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
@@ -44,9 +40,9 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 		return nil, nil, nil, fmt.Errorf("couldn't get user token: %v", err)
 	}
 	// parse and extract verified attributes
-	claims, err := c.validateTokenClaims(userToken)
+	claims, err := c.parseAccessToken(userToken, userUUID.String())
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't validate token claims: %v", err)
+		return nil, nil, nil, fmt.Errorf("couldn't parse user access token: %v", err)
 	}
 	return claims.RealmRoles, claims.UserGroups, claims.GroupProjectIDs, nil
 }

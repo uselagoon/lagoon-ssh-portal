@@ -1,7 +1,0 @@
-{
-  "account-service": "https://keycloak.main.lagoon-core.test6.amazee.io/auth/realms/lagoon/account",
-  "public_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmvoqDkFy0B1CSiQEF8zUNFw3+ePdIFSk1GOoQzVwpyBsZhjkv74A+tbZvSIAEX5Pu9DHN/5Hh6WGYgxVRvVC2Mpw5rHR4qf35Be+KsR++pLGLKkI8W0PEKVp5+occDuNqtMUMBHjLdWLd9d49tJjHQeHPexHRFI5Hv1KiMD159LYy8/T5UBuR/lI7Gy3JHfHcPlLLBVgA8rzIjxUzdn9jXIGIYG/vY6+fe8ElI+TvED0603x5gIPCAwMf33UdojXh/oIFyuRgwjolBzEIPPdasIcfJfR44XXV3bdDEa+bewvMJEgEyEMKdkBxbluPAXfDBvQ4prmlcaVqJO4Pez1GQIDAQAB",
-  "realm": "lagoon",
-  "token-service": "https://keycloak.main.lagoon-core.test6.amazee.io/auth/realms/lagoon/protocol/openid-connect",
-  "tokens-not-before": 0
-}
