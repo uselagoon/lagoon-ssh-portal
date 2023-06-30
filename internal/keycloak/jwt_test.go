@@ -199,6 +199,15 @@ func TestValidateTokenClaims(t *testing.T) {
 			expectError:    true,
 		},
 		// https://token.dev/
+		"zero-length signature (alg=none)": {
+			input: &oauth2.Token{
+				AccessToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY2ODU2NzA0NywiZXhwIjoxNjY4NTcwNjQ3fQ.",
+			},
+			validationTime: time.Date(2022, time.November, 14, 15, 16, 0, 0, time.UTC),
+			expectClaims:   nil,
+			expectError:    true,
+		},
+		// https://token.dev/
 		"invalid signature (alg=none)": {
 			input: &oauth2.Token{
 				// copied the previous case's AccessToken and appended a signature
