@@ -16,11 +16,12 @@ import (
 
 // ServeCmd represents the serve command.
 type ServeCmd struct {
-	NATSServer     string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
-	SSHServerPort  uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
-	HostKeyECDSA   string `kong:"env='HOST_KEY_ECDSA',help='PEM encoded ECDSA host key'"`
-	HostKeyED25519 string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
-	HostKeyRSA     string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
+	NATSServer       string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
+	SSHServerPort    uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
+	HostKeyECDSA     string `kong:"env='HOST_KEY_ECDSA',help='PEM encoded ECDSA host key'"`
+	HostKeyED25519   string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
+	HostKeyRSA       string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
+	LogAccessEnabled bool   `kong:"env='LOG_ACCESS_ENABLED',help='Allow any user who can SSH into a pod to also access its logs.'"`
 }
 
 // Run the serve command to handle SSH connection requests.
@@ -72,5 +73,5 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 		}
 	}
 	// start serving SSH connection requests
-	return sshserver.Serve(ctx, log, nc, l, c, hostkeys)
+	return sshserver.Serve(ctx, log, nc, l, c, hostkeys, cmd.LogAccessEnabled)
 }
