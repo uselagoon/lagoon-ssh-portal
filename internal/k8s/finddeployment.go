@@ -13,7 +13,8 @@ func (c *Client) FindDeployment(ctx context.Context, namespace,
 	service string) (string, error) {
 	deployments, err := c.clientset.AppsV1().Deployments(namespace).
 		List(ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("lagoon.sh/service=%s", service),
+			LabelSelector:  fmt.Sprintf("lagoon.sh/service=%s", service),
+			TimeoutSeconds: &timeoutSeconds,
 		})
 	if err != nil {
 		return "", fmt.Errorf("couldn't list deployments: %v", err)

@@ -14,6 +14,10 @@ const (
 	timeout = 90 * time.Second
 )
 
+// timeoutSeconds defines the common timeout for k8s API operations in the type
+// required by metav1.ListOptions.
+var timeoutSeconds = int64(timeout / time.Second)
+
 // Client is a k8s client.
 type Client struct {
 	config    *rest.Config
