@@ -71,6 +71,7 @@ func (c *Client) EnvironmentByNamespaceName(ctx context.Context, name string) (*
 		project.name AS project_name
 	FROM environment JOIN project ON environment.project = project.id
 	WHERE environment.openshift_project_name = ?
+	AND environment.deleted = '0000-00-00 00:00:00'
 	LIMIT 1`, name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
