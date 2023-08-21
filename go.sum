@@ -137,8 +137,8 @@ github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.8.3 h1:RP3t2pwF7cMEbC1dqtB6poj3niw/9gnV4Cjg5oW5gtY=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
-github.com/zitadel/oidc/v3 v3.0.0-next.8 h1:QloJTStHSYepkIFjz60NaSQggjpeZgPg4TGpoQvnIgc=
-github.com/zitadel/oidc/v3 v3.0.0-next.8/go.mod h1:xV4wpFbB6/tbgA3ygtKYTXkM0ciMku9iRU4IGRrrS2k=
+github.com/zitadel/oidc/v3 v3.0.0-next.9 h1:V4Rk1fm+T1mOdkrHCbZqL20DyV8eP8MAPA5wEPTszIM=
+github.com/zitadel/oidc/v3 v3.0.0-next.9/go.mod h1:xV4wpFbB6/tbgA3ygtKYTXkM0ciMku9iRU4IGRrrS2k=
 github.com/zitadel/schema v1.3.0 h1:kQ9W9tvIwZICCKWcMvCEweXET1OcOyGEuFbHs4o5kg0=
 github.com/zitadel/schema v1.3.0/go.mod h1:NptN6mkBDFvERUCvZHlvWmmME+gmZ44xzwRXwhzsbtc=
 go.opentelemetry.io/otel v1.16.0 h1:Z7GVAX/UkAXPKsy94IU+i6thsQS4nb7LviLpnaNeW8s=
