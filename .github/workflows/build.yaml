@@ -54,7 +54,7 @@ jobs:
     - name: Docker metadata
       # this id is namespaced per matrix run
       id: docker_metadata
-      uses: docker/metadata-action@v4
+      uses: docker/metadata-action@v5
       with:
         images: ghcr.io/uselagoon/lagoon-ssh-portal/${{ matrix.binary }}
     - name: Build and push ${{ matrix.binary }} container image
