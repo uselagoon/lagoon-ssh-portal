@@ -50,7 +50,7 @@ jobs:
     - name: Untar binaries
       run: tar -xvf dist.tar
     - name: Login to GHCR
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
