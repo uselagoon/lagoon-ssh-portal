@@ -14,7 +14,7 @@ require (
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.30.2
 	github.com/prometheus/client_golang v1.17.0
-	github.com/zitadel/oidc/v3 v3.0.0-next.10
+	github.com/zitadel/oidc/v3 v3.0.0-next.11
 	go.opentelemetry.io/otel v1.18.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.13.0
@@ -32,6 +32,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
@@ -74,7 +75,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
