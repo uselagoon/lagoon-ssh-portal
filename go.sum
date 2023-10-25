@@ -140,8 +140,8 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/zitadel/logging v0.4.0 h1:lRAIFgaRoJpLNbsL7jtIYHcMDoEJP9QZB4GqMfl4xaA=
 github.com/zitadel/logging v0.4.0/go.mod h1:6uALRJawpkkuUPCkgzfgcPR3c2N908wqnOnIrRelUFc=
-github.com/zitadel/oidc/v3 v3.0.2 h1:fw0EAjx8lIlDMJ54hDz2fWIhpW/Y13tW5gd1qWGqbr4=
-github.com/zitadel/oidc/v3 v3.0.2/go.mod h1:ne9V9FHug4iUZDV42JirWVLHcbmwaxY8LnkcfekHgRg=
+github.com/zitadel/oidc/v3 v3.1.1 h1:6A4j2ynPGuduM0v74zOf27v7m7ehsDtNEWFMw2WZyVs=
+github.com/zitadel/oidc/v3 v3.1.1/go.mod h1:ne9V9FHug4iUZDV42JirWVLHcbmwaxY8LnkcfekHgRg=
 github.com/zitadel/schema v1.3.0 h1:kQ9W9tvIwZICCKWcMvCEweXET1OcOyGEuFbHs4o5kg0=
 github.com/zitadel/schema v1.3.0/go.mod h1:NptN6mkBDFvERUCvZHlvWmmME+gmZ44xzwRXwhzsbtc=
 go.opentelemetry.io/otel v1.19.0 h1:MuS/TNf4/j4IXsZuJegVzI1cwut7Qc00344rgH7p8bs=
