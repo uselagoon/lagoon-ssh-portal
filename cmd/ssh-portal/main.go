@@ -1,3 +1,4 @@
+// Package main implements the ssh-portal executable.
 package main
 
 import (

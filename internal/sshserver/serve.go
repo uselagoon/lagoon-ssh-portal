@@ -32,11 +32,11 @@ func disableSHA1Kex(ctx ssh.Context) *gossh.ServerConfig {
 
 // Serve contains the main ssh session logic
 func Serve(ctx context.Context, log *zap.Logger, nc *nats.EncodedConn,
-	l net.Listener, c *k8s.Client, hostKeys [][]byte) error {
+	l net.Listener, c *k8s.Client, hostKeys [][]byte, logAccessEnabled bool) error {
 	srv := ssh.Server{
-		Handler: sessionHandler(log, c, false),
+		Handler: sessionHandler(log, c, false, logAccessEnabled),
 		SubsystemHandlers: map[string]ssh.SubsystemHandler{
-			"sftp": ssh.SubsystemHandler(sessionHandler(log, c, true)),
+			"sftp": ssh.SubsystemHandler(sessionHandler(log, c, true, logAccessEnabled)),
 		},
 		PublicKeyHandler:     pubKeyAuth(log, nc, c),
 		ServerConfigCallback: disableSHA1Kex,
