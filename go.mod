@@ -20,7 +20,7 @@ require (
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/oauth2 v0.15.0
-	golang.org/x/sync v0.3.0
+	golang.org/x/sync v0.5.0
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.4
