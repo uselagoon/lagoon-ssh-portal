@@ -17,7 +17,7 @@ require (
 	github.com/zitadel/oidc/v3 v3.7.0
 	go.opentelemetry.io/otel v1.21.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/crypto v0.16.0
+	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/oauth2 v0.15.0
 	golang.org/x/sync v0.3.0
