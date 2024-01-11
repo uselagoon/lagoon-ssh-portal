@@ -5,6 +5,7 @@
 [![coverage](https://raw.githubusercontent.com/uselagoon/lagoon-ssh-portal/badges/.badges/main/coverage.svg)](https://github.com/uselagoon/lagoon-ssh-portal/actions/workflows/coverage.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/uselagoon/lagoon-ssh-portal)](https://goreportcard.com/report/github.com/uselagoon/lagoon-ssh-portal)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/uselagoon/lagoon-ssh-portal/badge)](https://securityscorecards.dev/viewer/?uri=github.com/uselagoon/lagoon-ssh-portal)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8299/badge)](https://www.bestpractices.dev/projects/8299)
 
 This repository contains three related SSH services for [Lagoon](https://github.com/uselagoon/lagoon).
 
