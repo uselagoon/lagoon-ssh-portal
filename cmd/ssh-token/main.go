@@ -1,9 +1,11 @@
-// Package main is the executable ssh-token service.
+// Package main implements the ssh-token service.
 package main
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/alecthomas/kong"
-	"go.uber.org/zap"
 )
 
 // CLI represents the command-line interface.
@@ -20,13 +22,13 @@ func main() {
 		kong.UsageOnError(),
 	)
 	// init logger
-	var log *zap.Logger
+	var log *slog.Logger
 	if cli.Debug {
-		log = zap.Must(zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel)))
+		log = slog.New(slog.NewJSONHandler(os.Stderr,
+			&slog.HandlerOptions{Level: slog.LevelDebug}))
 	} else {
-		log = zap.Must(zap.NewProduction())
+		log = slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	}
-	defer log.Sync() //nolint:errcheck
 	// execute CLI
 	kctx.FatalIfErrorf(kctx.Run(log))
 }

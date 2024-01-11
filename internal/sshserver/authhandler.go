@@ -1,6 +1,7 @@
 package sshserver
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -9,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/sshportalapi"
-	"go.uber.org/zap"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -40,24 +40,22 @@ var (
 
 // pubKeyAuth returns a ssh.PublicKeyHandler which queries the remote
 // ssh-portal-api for Lagoon SSH authorization.
-func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
+func pubKeyAuth(log *slog.Logger, nc *nats.EncodedConn,
 	c *k8s.Client) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		authAttemptsTotal.Inc()
+		log := log.With(slog.String("sessionID", ctx.SessionID()))
 		// parse SSH public key
 		pubKey, err := gossh.ParsePublicKey(key.Marshal())
 		if err != nil {
-			log.Warn("couldn't parse SSH public key",
-				zap.String("sessionID", ctx.SessionID()),
-				zap.Error(err))
+			log.Warn("couldn't parse SSH public key", slog.Any("error", err))
 			return false
 		}
 		// get Lagoon labels from namespace if available
 		eid, pid, ename, pname, err := c.NamespaceDetails(ctx, ctx.User())
 		if err != nil {
 			log.Debug("couldn't get namespace details",
-				zap.String("sessionID", ctx.SessionID()),
-				zap.String("namespace", ctx.User()), zap.Error(err))
+				slog.String("namespace", ctx.User()), slog.Any("error", err))
 			return false
 		}
 		// construct ssh access query
@@ -73,17 +71,14 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 		var ok bool
 		err = nc.Request(sshportalapi.SubjectSSHAccessQuery, q, &ok, natsTimeout)
 		if err != nil {
-			log.Warn("couldn't make NATS request",
-				zap.String("sessionID", ctx.SessionID()),
-				zap.Error(err))
+			log.Warn("couldn't make NATS request", slog.Any("error", err))
 			return false
 		}
 		// handle response
 		if !ok {
 			log.Debug("SSH access not authorized",
-				zap.String("sessionID", ctx.SessionID()),
-				zap.String("fingerprint", fingerprint),
-				zap.String("namespace", ctx.User()))
+				slog.String("fingerprint", fingerprint),
+				slog.String("namespace", ctx.User()))
 			return false
 		}
 		authSuccessTotal.Inc()
@@ -93,9 +88,8 @@ func pubKeyAuth(log *zap.Logger, nc *nats.EncodedConn,
 		ctx.SetValue(projectNameKey, pname)
 		ctx.SetValue(sshFingerprint, fingerprint)
 		log.Debug("SSH access authorized",
-			zap.String("sessionID", ctx.SessionID()),
-			zap.String("fingerprint", fingerprint),
-			zap.String("namespace", ctx.User()))
+			slog.String("fingerprint", fingerprint),
+			slog.String("namespace", ctx.User()))
 		return true
 	}
 }

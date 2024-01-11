@@ -5,19 +5,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
-	"go.uber.org/zap"
 	gossh "golang.org/x/crypto/ssh"
 )
 
 // disableSHA1Kex returns a ServerConfig which relies on default for everything
 // except key exchange algorithms. There it removes the SHA1 based algorithms.
-func disableSHA1Kex(ctx ssh.Context) *gossh.ServerConfig {
+func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 	c := gossh.ServerConfig{}
 	c.Config.KeyExchanges = []string{
 		"curve25519-sha256",
@@ -31,7 +31,7 @@ func disableSHA1Kex(ctx ssh.Context) *gossh.ServerConfig {
 }
 
 // Serve contains the main ssh session logic
-func Serve(ctx context.Context, log *zap.Logger, nc *nats.EncodedConn,
+func Serve(ctx context.Context, log *slog.Logger, nc *nats.EncodedConn,
 	l net.Listener, c *k8s.Client, hostKeys [][]byte, logAccessEnabled bool) error {
 	srv := ssh.Server{
 		Handler: sessionHandler(log, c, false, logAccessEnabled),
@@ -53,7 +53,7 @@ func Serve(ctx context.Context, log *zap.Logger, nc *nats.EncodedConn,
 		shutCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutCtx); err != nil {
-			log.Warn("couldn't shutdown cleanly", zap.Error(err))
+			log.Warn("couldn't shutdown cleanly", slog.Any("error", err))
 		}
 	}()
 	if err := srv.Serve(l); !errors.Is(ssh.ErrServerClosed, err) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
-	"go.uber.org/zap"
 )
 
 // give an 8 second deadline to shut down cleanly.
@@ -26,7 +26,7 @@ type LagoonDBService interface {
 }
 
 // Serve contains the main ssh session logic
-func Serve(ctx context.Context, log *zap.Logger, l net.Listener,
+func Serve(ctx context.Context, log *slog.Logger, l net.Listener,
 	p *rbac.Permission, ldb *lagoondb.Client,
 	keycloakToken, keycloakPermission *keycloak.Client,
 	hostKeys [][]byte) error {
@@ -45,7 +45,7 @@ func Serve(ctx context.Context, log *zap.Logger, l net.Listener,
 		shutCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutCtx); err != nil {
-			log.Warn("couldn't shutdown cleanly", zap.Error(err))
+			log.Warn("couldn't shutdown cleanly", slog.Any("error", err))
 		}
 	}()
 	if err := srv.Serve(l); !errors.Is(ssh.ErrServerClosed, err) {

@@ -2,12 +2,12 @@ package sshtoken
 
 import (
 	"errors"
+	"log/slog"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
-	"go.uber.org/zap"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -30,29 +30,26 @@ var (
 
 // pubKeyAuth returns a ssh.PublicKeyHandler which accepts any key which
 // matches a user, and the associated user UUID to the ssh context.
-func pubKeyAuth(log *zap.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
+func pubKeyAuth(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		authnAttemptsTotal.Inc()
+		log := log.With(slog.String("sessionID", ctx.SessionID()))
 		// parse SSH public key
 		pubKey, err := gossh.ParsePublicKey(key.Marshal())
 		if err != nil {
-			log.Warn("couldn't parse SSH public key",
-				zap.String("sessionID", ctx.SessionID()),
-				zap.Error(err))
+			log.Warn("couldn't parse SSH public key", slog.Any("error", err))
 			return false
 		}
 		// identify Lagoon user by ssh key fingerprint
 		fingerprint := gossh.FingerprintSHA256(pubKey)
+		log = log.With(slog.String("fingerprint", fingerprint))
 		user, err := ldb.UserBySSHFingerprint(ctx, fingerprint)
 		if err != nil {
 			if errors.Is(err, lagoondb.ErrNoResult) {
-				log.Debug("unknown SSH Fingerprint",
-					zap.String("sessionID", ctx.SessionID()))
+				log.Debug("unknown SSH Fingerprint")
 			} else {
 				log.Warn("couldn't query for user by SSH key fingerprint",
-					zap.String("sessionID", ctx.SessionID()),
-					zap.String("fingerprint", fingerprint),
-					zap.Error(err))
+					slog.Any("error", err))
 			}
 			return false
 		}
@@ -62,9 +59,7 @@ func pubKeyAuth(log *zap.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 		authnSuccessTotal.Inc()
 		ctx.SetValue(userUUID, user.UUID)
 		log.Info("authentication successful",
-			zap.String("sessionID", ctx.SessionID()),
-			zap.String("fingerprint", fingerprint),
-			zap.String("userID", user.UUID.String()))
+			slog.String("userID", user.UUID.String()))
 		return true
 	}
 }

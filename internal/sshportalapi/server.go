@@ -5,13 +5,13 @@ package sshportalapi
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
-	"go.uber.org/zap"
 )
 
 const (
@@ -31,7 +31,7 @@ type KeycloakService interface {
 }
 
 // ServeNATS sshportalapi NATS requests.
-func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
+func ServeNATS(ctx context.Context, stop context.CancelFunc, log *slog.Logger,
 	p *rbac.Permission, l LagoonDBService, k KeycloakService, natsURL string) error {
 	// setup synchronisation
 	wg := sync.WaitGroup{}
@@ -46,10 +46,10 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 			wg.Done()
 		}),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			log.Warn("nats disconnected", zap.Error(err))
+			log.Warn("nats disconnected", slog.Any("error", err))
 		}),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Info("nats reconnected", zap.String("url", nc.ConnectedUrl()))
+			log.Info("nats reconnected", slog.String("url", nc.ConnectedUrl()))
 		}))
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
@@ -69,7 +69,7 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *zap.Logger,
 	<-ctx.Done()
 	// drain and log errors
 	if err := nc.Drain(); err != nil {
-		log.Warn("couldn't drain connection", zap.Error(err))
+		log.Warn("couldn't drain connection", slog.Any("error", err))
 	}
 	// wait for connection to close
 	wg.Wait()

@@ -5,12 +5,11 @@ package keycloak
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
 	"time"
-
-	"go.uber.org/zap"
 
 	"github.com/MicahParks/keyfunc/v2"
 	oidcClient "github.com/zitadel/oidc/v3/pkg/client"
@@ -24,12 +23,12 @@ type Client struct {
 	clientID     string
 	clientSecret string
 	jwks         *keyfunc.JWKS
-	log          *zap.Logger
+	log          *slog.Logger
 	oidcConfig   *oidc.DiscoveryConfiguration
 }
 
 // NewClient creates a new keycloak client for the lagoon realm.
-func NewClient(ctx context.Context, log *zap.Logger, keycloakURL, clientID,
+func NewClient(ctx context.Context, log *slog.Logger, keycloakURL, clientID,
 	clientSecret string) (*Client, error) {
 	// discover OIDC config
 	issuerURL, err := url.Parse(keycloakURL)

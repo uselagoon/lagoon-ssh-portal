@@ -3,6 +3,7 @@ package sshportalapi
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,7 +11,6 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.opentelemetry.io/otel"
-	"go.uber.org/zap"
 )
 
 const (
@@ -27,6 +27,17 @@ type SSHAccessQuery struct {
 	SessionID      string
 }
 
+// LogValue implements the slog.LogValuer interface.
+func (q SSHAccessQuery) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("sshFingerprint", q.SSHFingerprint),
+		slog.String("namespaceName", q.NamespaceName),
+		slog.Int("projectID", q.ProjectID),
+		slog.Int("environmentID", q.EnvironmentID),
+		slog.String("sessionID", q.SessionID),
+	)
+}
+
 var (
 	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "sshportalapi_requests_total",
@@ -34,7 +45,7 @@ var (
 	})
 )
 
-func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
+func sshportal(ctx context.Context, log *slog.Logger, c *nats.EncodedConn,
 	p *rbac.Permission, l LagoonDBService, k KeycloakService) nats.Handler {
 	return func(_, replySubject string, query *SSHAccessQuery) {
 		var realmRoles, userGroups []string
@@ -43,27 +54,23 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 		ctx, span := otel.Tracer(pkgName).Start(ctx, SubjectSSHAccessQuery)
 		defer span.End()
 		requestsCounter.Inc()
+		log := log.With(slog.Any("query", query))
 		// sanity check the query
 		if query.SSHFingerprint == "" || query.NamespaceName == "" {
-			log.Warn("malformed sshportal query", zap.Any("query", query))
+			log.Warn("malformed sshportal query")
 			return
 		}
 		// get the environment
 		env, err := l.EnvironmentByNamespaceName(ctx, query.NamespaceName)
 		if err != nil {
 			if errors.Is(err, lagoondb.ErrNoResult) {
-				log.Warn("unknown namespace name",
-					zap.Any("query", query), zap.Error(err))
+				log.Warn("unknown namespace name", slog.Any("error", err))
 				if err = c.Publish(replySubject, false); err != nil {
-					log.Error("couldn't publish reply",
-						zap.Any("query", query),
-						zap.Bool("reply", false),
-						zap.Error(err))
+					log.Error("couldn't publish reply", slog.Any("error", err))
 				}
 				return
 			}
-			log.Error("couldn't query environment",
-				zap.Any("query", query), zap.Error(err))
+			log.Error("couldn't query environment", slog.Any("error", err))
 			return
 		}
 		// sanity check the environment we found
@@ -73,12 +80,10 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 		if (query.ProjectID != 0 && query.ProjectID != env.ProjectID) ||
 			(query.EnvironmentID != 0 && query.EnvironmentID != env.ID) {
 			log.Warn("ID mismatch in environment identification",
-				zap.Any("query", query), zap.Any("env", env), zap.Error(err))
+				slog.Any("env", env),
+				slog.Any("error", err))
 			if err = c.Publish(replySubject, false); err != nil {
-				log.Error("couldn't publish reply",
-					zap.Any("query", query),
-					zap.Bool("reply", false),
-					zap.Error(err))
+				log.Error("couldn't publish reply", slog.Any("error", err))
 			}
 			return
 		}
@@ -86,19 +91,13 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 		user, err := l.UserBySSHFingerprint(ctx, query.SSHFingerprint)
 		if err != nil {
 			if errors.Is(err, lagoondb.ErrNoResult) {
-				log.Debug("unknown SSH Fingerprint",
-					zap.Any("query", query), zap.Error(err))
+				log.Debug("unknown SSH Fingerprint", slog.Any("error", err))
 				if err = c.Publish(replySubject, false); err != nil {
-					log.Error("couldn't publish reply",
-						zap.Any("query", query),
-						zap.Bool("reply", false),
-						zap.String("userUUID", user.UUID.String()),
-						zap.Error(err))
+					log.Error("couldn't publish reply", slog.Any("error", err))
 				}
 				return
 			}
-			log.Error("couldn't query user by ssh fingerprint",
-				zap.Any("query", query), zap.Error(err))
+			log.Error("couldn't query user by ssh fingerprint", slog.Any("error", err))
 			return
 		}
 		// get the user roles and groups
@@ -106,17 +105,15 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 			k.UserRolesAndGroups(ctx, user.UUID)
 		if err != nil {
 			log.Error("couldn't query user roles and groups",
-				zap.Any("query", query),
-				zap.String("userUUID", user.UUID.String()),
-				zap.Error(err))
+				slog.String("userUUID", user.UUID.String()),
+				slog.Any("error", err))
 			return
 		}
 		log.Debug("keycloak user attributes",
-			zap.Strings("realmRoles", realmRoles),
-			zap.Strings("userGroups", userGroups),
-			zap.Any("groupProjectIDs", groupProjectIDs),
-			zap.String("userUUID", user.UUID.String()),
-			zap.String("sessionID", query.SessionID),
+			slog.Any("realmRoles", realmRoles),
+			slog.Any("userGroups", userGroups),
+			slog.Any("groupProjectIDs", groupProjectIDs),
+			slog.String("userUUID", user.UUID.String()),
 		)
 		// check permission
 		ok := p.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
@@ -128,21 +125,16 @@ func sshportal(ctx context.Context, log *zap.Logger, c *nats.EncodedConn,
 			logMsg = "SSH access not authorized"
 		}
 		log.Info(logMsg,
-			zap.Int("environmentID", env.ID),
-			zap.Int("projectID", env.ProjectID),
-			zap.String("SSHFingerprint", query.SSHFingerprint),
-			zap.String("environmentName", env.Name),
-			zap.String("namespace", query.NamespaceName),
-			zap.String("projectName", env.ProjectName),
-			zap.String("sessionID", query.SessionID),
-			zap.String("userUUID", user.UUID.String()),
+			slog.Int("environmentID", env.ID),
+			slog.Int("projectID", env.ProjectID),
+			slog.String("environmentName", env.Name),
+			slog.String("projectName", env.ProjectName),
+			slog.String("userUUID", user.UUID.String()),
 		)
 		if err = c.Publish(replySubject, ok); err != nil {
 			log.Error("couldn't publish reply",
-				zap.Any("query", query),
-				zap.Bool("reply", ok),
-				zap.String("userUUID", user.UUID.String()),
-				zap.Error(err))
+				slog.String("userUUID", user.UUID.String()),
+				slog.Any("error", err))
 		}
 	}
 }
