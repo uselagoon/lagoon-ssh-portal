@@ -19,6 +19,10 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserRolesAndGroups")
 	defer span.End()
+	// rate limit keycloak API access
+	if err := c.limiter.Wait(ctx); err != nil {
+		return nil, nil, nil, fmt.Errorf("couldn't wait for limiter: %v", err)
+	}
 	// get user token
 	userConfig := oauth2.Config{
 		ClientID:     c.clientID,

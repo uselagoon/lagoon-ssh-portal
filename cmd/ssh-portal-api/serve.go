@@ -25,6 +25,7 @@ type ServeCmd struct {
 	KeycloakBaseURL      string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
+	KeycloakRateLimit    int    `kong:"default=10,env='KEYCLOAK_RATE_LIMIT',help='Keycloak API Rate Limit (requests/second)'"`
 	NATSURL              string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
 }
 
@@ -53,13 +54,16 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	dbConf.User = cmd.APIDBUsername
 	l, err := lagoondb.NewClient(ctx, dbConf.FormatDSN())
 	if err != nil {
-		return fmt.Errorf("couldn't init lagoon DBClient: %v", err)
+		return fmt.Errorf("couldn't init lagoondb client: %v", err)
 	}
 	// init keycloak client
-	k, err := keycloak.NewClient(ctx, log, cmd.KeycloakBaseURL,
-		cmd.KeycloakClientID, cmd.KeycloakClientSecret)
+	k, err := keycloak.NewClient(ctx, log,
+		cmd.KeycloakBaseURL,
+		cmd.KeycloakClientID,
+		cmd.KeycloakClientSecret,
+		cmd.KeycloakRateLimit)
 	if err != nil {
-		return fmt.Errorf("couldn't init keycloak Client: %v", err)
+		return fmt.Errorf("couldn't init keycloak client: %v", err)
 	}
 	// start serving NATS requests
 	return sshportalapi.ServeNATS(ctx, stop, log, p, l, k, cmd.NATSURL)

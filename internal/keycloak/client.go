@@ -14,6 +14,7 @@ import (
 	"github.com/MicahParks/keyfunc/v2"
 	oidcClient "github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
+	"golang.org/x/time/rate"
 )
 
 const pkgName = "github.com/uselagoon/ssh-portal/internal/keycloak"
@@ -25,11 +26,12 @@ type Client struct {
 	jwks         *keyfunc.JWKS
 	log          *slog.Logger
 	oidcConfig   *oidc.DiscoveryConfiguration
+	limiter      *rate.Limiter
 }
 
 // NewClient creates a new keycloak client for the lagoon realm.
 func NewClient(ctx context.Context, log *slog.Logger, keycloakURL, clientID,
-	clientSecret string) (*Client, error) {
+	clientSecret string, rateLimit int) (*Client, error) {
 	// discover OIDC config
 	issuerURL, err := url.Parse(keycloakURL)
 	if err != nil {
@@ -53,5 +55,6 @@ func NewClient(ctx context.Context, log *slog.Logger, keycloakURL, clientID,
 		jwks:         jwks,
 		log:          log,
 		oidcConfig:   oidcConfig,
+		limiter:      rate.NewLimiter(rate.Limit(rateLimit), rateLimit),
 	}, nil
 }

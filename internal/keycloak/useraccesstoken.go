@@ -54,6 +54,10 @@ func (c *Client) UserAccessTokenResponse(ctx context.Context,
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserAccessToken")
 	defer span.End()
+	// rate limit keycloak API access
+	if err := c.limiter.Wait(ctx); err != nil {
+		return "", fmt.Errorf("couldn't wait for limiter: %v", err)
+	}
 	// get user token
 	userToken, err := c.getUserToken(ctx, userUUID)
 	if err != nil {
@@ -74,6 +78,10 @@ func (c *Client) UserAccessToken(ctx context.Context,
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserAccessToken")
 	defer span.End()
+	// rate limit keycloak API access
+	if err := c.limiter.Wait(ctx); err != nil {
+		return "", fmt.Errorf("couldn't wait for limiter: %v", err)
+	}
 	// get user token
 	userToken, err := c.getUserToken(ctx, userUUID)
 	if err != nil {

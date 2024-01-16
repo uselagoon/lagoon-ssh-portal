@@ -29,6 +29,7 @@ type ServeCmd struct {
 	KeycloakBaseURL                string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
 	KeycloakPermissionClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak service-api OAuth2 Client ID'"`
 	KeycloakPermissionClientSecret string `kong:"env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak service-api OAuth2 Client Secret'"`
+	KeycloakRateLimit              int    `kong:"default=10,env='KEYCLOAK_RATE_LIMIT',help='Keycloak API Rate Limit (requests/second)'"`
 	KeycloakTokenClientID          string `kong:"default='auth-server',env='KEYCLOAK_AUTH_SERVER_CLIENT_ID',help='Keycloak auth-server OAuth2 Client ID'"`
 	KeycloakTokenClientSecret      string `kong:"required,env='KEYCLOAK_AUTH_SERVER_CLIENT_SECRET',help='Keycloak auth-server OAuth2 Client Secret'"`
 	SSHServerPort                  uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
@@ -62,14 +63,20 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 		return fmt.Errorf("couldn't init lagoonDB client: %v", err)
 	}
 	// init token / auth-server keycloak client
-	keycloakToken, err := keycloak.NewClient(ctx, log, cmd.KeycloakBaseURL,
-		cmd.KeycloakTokenClientID, cmd.KeycloakTokenClientSecret)
+	keycloakToken, err := keycloak.NewClient(ctx, log,
+		cmd.KeycloakBaseURL,
+		cmd.KeycloakTokenClientID,
+		cmd.KeycloakTokenClientSecret,
+		cmd.KeycloakRateLimit)
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak token client: %v", err)
 	}
 	// init permission / service-api keycloak client
-	keycloakPermission, err := keycloak.NewClient(ctx, log, cmd.KeycloakBaseURL,
-		cmd.KeycloakPermissionClientID, cmd.KeycloakPermissionClientSecret)
+	keycloakPermission, err := keycloak.NewClient(ctx, log,
+		cmd.KeycloakBaseURL,
+		cmd.KeycloakPermissionClientID,
+		cmd.KeycloakPermissionClientSecret,
+		cmd.KeycloakRateLimit)
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak permission client: %v", err)
 	}
