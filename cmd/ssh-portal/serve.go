@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os/signal"
 	"syscall"
@@ -11,7 +12,6 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
-	"go.uber.org/zap"
 )
 
 // ServeCmd represents the serve command.
@@ -25,7 +25,7 @@ type ServeCmd struct {
 }
 
 // Run the serve command to handle SSH connection requests.
-func (cmd *ServeCmd) Run(log *zap.Logger) error {
+func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// metrics needs a separate context because deferred Shutdown() will exit
 	// immediately the context is done, which is the case for ctx on SIGTERM.
 	m := metrics.NewServer(log, ":9912")
@@ -42,10 +42,10 @@ func (cmd *ServeCmd) Run(log *zap.Logger) error {
 			stop()
 		}),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			log.Warn("nats disconnected", zap.Error(err))
+			log.Warn("nats disconnected", slog.Any("error", err))
 		}),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Info("nats reconnected", zap.String("url", nc.ConnectedUrl()))
+			log.Info("nats reconnected", slog.String("url", nc.ConnectedUrl()))
 		}))
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)

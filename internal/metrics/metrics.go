@@ -1,17 +1,18 @@
+// Package metrics implements the prometheus metrics server.
 package metrics
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
 )
 
 // NewServer returns a *http.Server serving prometheus metrics in a new
 // goroutine.
 // Caller should defer Shutdown() for cleanup.
-func NewServer(log *zap.Logger, addr string) *http.Server {
+func NewServer(log *slog.Logger, addr string) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	s := http.Server{
@@ -22,7 +23,7 @@ func NewServer(log *zap.Logger, addr string) *http.Server {
 	}
 	go func() {
 		if err := s.ListenAndServe(); err != http.ErrServerClosed {
-			log.Error("metrics server did not shut down cleanly", zap.Error(err))
+			log.Error("metrics server did not shut down cleanly", slog.Any("error", err))
 		}
 	}()
 	return &s

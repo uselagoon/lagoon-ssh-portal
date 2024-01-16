@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"github.com/alecthomas/assert/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/uselagoon/ssh-portal/internal/keycloak"
-	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
 
@@ -135,7 +135,7 @@ func TestUnmarshalLagoonClaims(t *testing.T) {
 
 func TestValidateTokenClaims(t *testing.T) {
 	// set up logger
-	log := zap.Must(zap.NewDevelopment())
+	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	// set up test cases
 	validClaims := keycloak.LagoonClaims{
 		AuthorizedParty: "auth-server",

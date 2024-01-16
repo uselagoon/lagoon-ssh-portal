@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os/signal"
 	"syscall"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"github.com/uselagoon/ssh-portal/internal/sshportalapi"
-	"go.uber.org/zap"
 )
 
 // ServeCmd represents the serve command.
@@ -29,7 +29,7 @@ type ServeCmd struct {
 }
 
 // Run the serve command to ssh-portal API requests.
-func (cmd *ServeCmd) Run(log *zap.Logger) error {
+func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// metrics needs a separate context because deferred Shutdown() will exit
 	// immediately the context is done, which is the case for ctx on SIGTERM.
 	m := metrics.NewServer(log, ":9911")
