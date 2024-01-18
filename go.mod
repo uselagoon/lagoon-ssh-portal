@@ -14,7 +14,7 @@ require (
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.32.0
 	github.com/prometheus/client_golang v1.18.0
-	github.com/zitadel/oidc/v3 v3.10.0
+	github.com/zitadel/oidc/v3 v3.10.2
 	go.opentelemetry.io/otel v1.22.0
 	golang.org/x/crypto v0.18.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
