@@ -3,6 +3,7 @@ package sshserver
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -13,6 +14,14 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"k8s.io/utils/exec"
 )
+
+// K8SAPIService provides methods for querying the Kubernetes API.
+type K8SAPIService interface {
+	Exec(context.Context, string, string, string, []string, io.ReadWriter,
+		io.Writer, bool, <-chan ssh.Window) error
+	FindDeployment(context.Context, string, string) (string, error)
+	Logs(context.Context, string, string, string, bool, int64, io.ReadWriter) error
+}
 
 var (
 	sessionTotal = promauto.NewCounter(prometheus.CounterOpts{
@@ -46,7 +55,7 @@ func getSSHIntent(sftp bool, cmd []string) []string {
 // handler is that the command is set to sftp-server. This implies that the
 // target container must have a sftp-server binary installed for sftp to work.
 // There is no support for a built-in sftp server.
-func sessionHandler(log *slog.Logger, c *k8s.Client,
+func sessionHandler(log *slog.Logger, c K8SAPIService,
 	sftp, logAccessEnabled bool) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
@@ -211,7 +220,7 @@ func startClientKeepalive(ctx context.Context, cancel context.CancelFunc,
 }
 
 func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
-	container string, follow bool, tailLines int64, c *k8s.Client) {
+	container string, follow bool, tailLines int64, c K8SAPIService) {
 	// Wrap the ssh.Context so we can cancel goroutines started from this
 	// function without affecting the SSH session.
 	childCtx, cancel := context.WithCancel(ctx)
@@ -244,7 +253,7 @@ func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
 }
 
 func doExec(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
-	container string, cmd []string, c *k8s.Client, pty bool,
+	container string, cmd []string, c K8SAPIService, pty bool,
 	winch <-chan ssh.Window) {
 	err := c.Exec(ctx, s.User(), deployment, container, cmd, s,
 		s.Stderr(), pty, winch)
