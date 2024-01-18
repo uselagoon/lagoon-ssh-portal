@@ -21,6 +21,8 @@ const shutdownTimeout = 8 * time.Second
 
 // disableSHA1Kex returns a ServerConfig which relies on default for everything
 // except key exchange algorithms. There it removes the SHA1 based algorithms.
+//
+// This works around https://github.com/golang/go/issues/59593
 func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 	c := gossh.ServerConfig{}
 	c.Config.KeyExchanges = []string{
