@@ -1,6 +1,7 @@
 package sshserver_test
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -84,6 +85,83 @@ func TestExec(t *testing.T) {
 				os.Stderr,
 				tc.pty,
 				winch,
+			).Return(nil)
+			// execute callback
+			callback(sshSession)
+		})
+	}
+}
+
+func TestLogs(t *testing.T) {
+	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	var testCases = map[string]struct {
+		user             string
+		deployment       string
+		rawCommand       []string
+		command          []string
+		sftp             bool
+		logAccessEnabled bool
+		pty              bool
+		follow           bool
+		taillines        int64
+	}{
+		"nginx logs": {
+			user:             "project-test",
+			deployment:       "nginx",
+			rawCommand:       []string{"service=nginx", "logs=tailLines=10"},
+			command:          nil,
+			sftp:             false,
+			logAccessEnabled: true,
+			pty:              false,
+			follow:           false,
+			taillines:        10,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(tt *testing.T) {
+			// set up mocks
+			ctrl := gomock.NewController(tt)
+			k8sService := mock.NewMockK8SAPIService(ctrl)
+			sshSession := mock.NewMockSession(ctrl)
+			sshContext := mock.NewMockContext(ctrl)
+			// configure callback
+			callback := sshserver.SessionHandler(
+				log,
+				k8sService,
+				tc.sftp,
+				tc.logAccessEnabled,
+			)
+			// configure mocks
+			sshSession.EXPECT().Context().Return(sshContext)
+			sshContext.EXPECT().SessionID().Return("test_session_id")
+			sshSession.EXPECT().Command().Return(tc.rawCommand).AnyTimes()
+			sshSession.EXPECT().Subsystem().Return("")
+			sshSession.EXPECT().User().Return(tc.user).AnyTimes()
+			k8sService.EXPECT().FindDeployment(
+				sshContext,
+				tc.user,
+				tc.deployment,
+			).Return(tc.deployment, nil)
+			sshContext.EXPECT().Value(sshserver.CtxKey(0)).Return(0)
+			sshContext.EXPECT().Value(sshserver.CtxKey(1)).Return("test")
+			sshContext.EXPECT().Value(sshserver.CtxKey(2)).Return(0)
+			sshContext.EXPECT().Value(sshserver.CtxKey(3)).Return("project")
+			sshContext.EXPECT().Value(sshserver.CtxKey(4)).Return("fingerprint")
+
+			// this call is executed by context.WithCancel()
+			sshContext.EXPECT().Value(gomock.Any()).Return(nil).Times(4)
+
+			sshContext.EXPECT().Done().Return(make(<-chan struct{})).AnyTimes()
+			childCtx, cancel := context.WithCancel(sshContext)
+			defer cancel()
+			k8sService.EXPECT().Logs(
+				childCtx,
+				tc.user,
+				tc.deployment,
+				"",
+				tc.follow,
+				tc.taillines,
+				sshSession,
 			).Return(nil)
 			// execute callback
 			callback(sshSession)
