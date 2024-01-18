@@ -15,6 +15,10 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
+// default server shutdown timeout once the top-level context is cancelled
+// (e.g. via signal)
+const shutdownTimeout = 8 * time.Second
+
 // disableSHA1Kex returns a ServerConfig which relies on default for everything
 // except key exchange algorithms. There it removes the SHA1 based algorithms.
 func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
@@ -30,9 +34,16 @@ func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 	return &c
 }
 
-// Serve contains the main ssh session logic
-func Serve(ctx context.Context, log *slog.Logger, nc *nats.EncodedConn,
-	l net.Listener, c *k8s.Client, hostKeys [][]byte, logAccessEnabled bool) error {
+// Serve implements the ssh server logic.
+func Serve(
+	ctx context.Context,
+	log *slog.Logger,
+	nc *nats.EncodedConn,
+	l net.Listener,
+	c *k8s.Client,
+	hostKeys [][]byte,
+	logAccessEnabled bool,
+) error {
 	srv := ssh.Server{
 		Handler: sessionHandler(log, c, false, logAccessEnabled),
 		SubsystemHandlers: map[string]ssh.SubsystemHandler{
@@ -48,9 +59,8 @@ func Serve(ctx context.Context, log *slog.Logger, nc *nats.EncodedConn,
 	}
 	go func() {
 		// As soon as the top level context is cancelled, shut down the server.
-		// Give an 8 second deadline to do this.
 		<-ctx.Done()
-		shutCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		shutCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutCtx); err != nil {
 			log.Warn("couldn't shutdown cleanly", slog.Any("error", err))
