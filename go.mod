@@ -9,7 +9,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.6
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.32.0
