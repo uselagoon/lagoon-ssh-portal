@@ -9,12 +9,12 @@ require (
 	github.com/gliderlabs/ssh v0.3.6
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.32.0
 	github.com/prometheus/client_golang v1.18.0
-	github.com/zitadel/oidc/v3 v3.10.2
+	github.com/zitadel/oidc/v3 v3.11.0
 	go.opentelemetry.io/otel v1.22.0
 	golang.org/x/crypto v0.18.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
