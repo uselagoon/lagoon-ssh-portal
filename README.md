@@ -17,6 +17,11 @@ To perform authentication it communicates back to `ssh-portal-api` running in La
 `ssh-portal` implements shell access with service and container selection [as described in the Lagoon documentation](https://docs.lagoon.sh/using-lagoon-advanced/ssh/#ssh-into-a-pod), but it does not implement token generation.
 Unlike the existing Lagoon SSH service, `ssh-portal` _only_ provides access to Lagoon environments running in the local cluster.
 
+### Usage
+
+This service is part of Lagoon and is designed to be used in the [Lagoon Remote chart](https://github.com/uselagoon/lagoon-charts/tree/main/charts/lagoon-remote).
+For an overview of options, run `ssh-portal --help` or `ssh-portal serve --help`.
+
 ## SSH Portal API
 
 `ssh-portal-api` is part of Lagoon Core, and serves authentication and authorization queries from `ssh-portal` services running in a Lagoon Remote.
@@ -24,12 +29,32 @@ Unlike the existing Lagoon SSH service, `ssh-portal` _only_ provides access to L
 `ssh-portal-api` is explicitly _not_ a public API and makes no guarantees about compatibility.
 It is _only_ designed to cater to the requirements of `ssh-portal`.
 
+### Usage
+
+This service is part of Lagoon and is designed to be used in the [Lagoon Core chart](https://github.com/uselagoon/lagoon-charts/tree/main/charts/lagoon-core).
+For an overview of options, run `ssh-portal-api --help` or `ssh-portal-api serve --help`.
+
 ## SSH Token
 
 `ssh-token` is part of Lagoon Core, and it serves JWT token generation requests.
 
 This service does not provide shell access.
 Instead, it authenticates users by SSH key and returns a user access token which can then be used to authenticate to the Lagoon API.
+
+The API is:
+
+| Command                       | Output                                                                                                |
+| ---                           | ---                                                                                                   |
+| `ssh lagoon@$TOKEN_URL token` | Bare OAuth2 `access_token`.                                                                           |
+| `ssh lagoon@$TOKEN_URL grant` | Full OAuth2 token JSON object containing `access_token`, `expiry`, `refresh_token`, and `token_type`. |
+
+This API is not intended for end users to access directly.
+Instead you should use the [Lagoon CLI](https://uselagoon.github.io/lagoon-cli/commands/lagoon_get_token/) to obtain a token if you really need one.
+
+### Usage
+
+This service is part of Lagoon and is designed to be used in the [Lagoon Core chart](https://github.com/uselagoon/lagoon-charts/tree/main/charts/lagoon-core).
+For an overview of options, run `ssh-token --help` or `ssh-token serve --help`.
 
 ## High-level Architecture
 
