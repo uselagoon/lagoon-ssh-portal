@@ -14,6 +14,11 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"github.com/uselagoon/ssh-portal/internal/sshtoken"
+	"golang.org/x/sync/errgroup"
+)
+
+const (
+	metricsPort = ":9948"
 )
 
 // ServeCmd represents the serve command.
@@ -37,10 +42,6 @@ type ServeCmd struct {
 
 // Run the serve command to ssh-portal API requests.
 func (cmd *ServeCmd) Run(log *slog.Logger) error {
-	// metrics needs a separate context because deferred Shutdown() will exit
-	// immediately the context is done, which is the case for ctx on SIGTERM.
-	m := metrics.NewServer(log, ":9948")
-	defer m.Shutdown(context.Background()) //nolint:errcheck
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
@@ -85,6 +86,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't listen on port %d: %v", cmd.SSHServerPort, err)
 	}
+	defer l.Close()
 	// check for persistent host key arguments
 	var hostkeys [][]byte
 	for _, hk := range []string{cmd.HostKeyECDSA, cmd.HostKeyED25519,
@@ -93,7 +95,14 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 			hostkeys = append(hostkeys, []byte(hk))
 		}
 	}
+	// set up goroutine handler
+	eg, ctx := errgroup.WithContext(ctx)
+	// start the metrics server
+	metrics.Serve(ctx, eg, metricsPort)
 	// start serving SSH token requests
-	return sshtoken.Serve(ctx, log, l, p, ldb, keycloakToken, keycloakPermission,
-		hostkeys)
+	eg.Go(func() error {
+		return sshtoken.Serve(ctx, log, l, p, ldb, keycloakToken, keycloakPermission,
+			hostkeys)
+	})
+	return eg.Wait()
 }
