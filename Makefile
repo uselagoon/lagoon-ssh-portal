@@ -23,5 +23,6 @@ fuzz: mod-tidy generate
 
 .PHONY: cover
 cover: mod-tidy generate
-	go test -v -covermode=atomic -coverprofile=cover.out -coverpkg=./... ./...
+	go test -v -covermode=atomic -coverprofile=cover.out.raw -coverpkg=./... ./...
+	grep -Ev 'internal/mock|_enumer.go' cover.out.raw > cover.out
 	go tool cover -html=cover.out
