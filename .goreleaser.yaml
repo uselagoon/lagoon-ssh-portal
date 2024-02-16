@@ -10,7 +10,7 @@ builds:
     -X "main.date={{.Date}}"
     -X "main.goVersion={{.Env.GOVERSION}}"
     -X "main.projectName={{.ProjectName}}"
-    -X "main.version={{.Version}}"
+    -X "main.version=v{{.Version}}"
   env:
   - CGO_ENABLED=0
   goos:
@@ -51,7 +51,7 @@ dockers:
 - ids:
   - ssh-portal
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-amd64"
   use: buildx
   build_flag_templates:
   - "--build-arg=BINARY=ssh-portal"
@@ -59,7 +59,7 @@ dockers:
 - ids:
   - ssh-portal
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-arm64v8"
   use: buildx
   goarch: arm64
   build_flag_templates:
@@ -69,7 +69,7 @@ dockers:
 - ids:
   - ssh-portal-api
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-amd64"
   use: buildx
   build_flag_templates:
   - "--build-arg=BINARY=ssh-portal-api"
@@ -77,7 +77,7 @@ dockers:
 - ids:
   - ssh-portal-api
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-arm64v8"
   use: buildx
   goarch: arm64
   build_flag_templates:
@@ -87,7 +87,7 @@ dockers:
 - ids:
   - ssh-token
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
   use: buildx
   build_flag_templates:
   - "--build-arg=BINARY=ssh-token"
@@ -95,7 +95,7 @@ dockers:
 - ids:
   - ssh-token
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
   use: buildx
   goarch: arm64
   build_flag_templates:
@@ -104,32 +104,32 @@ dockers:
 
 docker_manifests:
 # ssh-portal
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}"
+- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}"
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-arm64v8"
 - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:latest"
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-arm64v8"
 # ssh-portal-api
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}"
+- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}"
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-arm64v8"
 - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:latest"
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-arm64v8"
 # ssh-token
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}"
+- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}"
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
 - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:latest"
   image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:{{ .Version }}-arm64v8"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
 
 docker_signs:
 - args:
