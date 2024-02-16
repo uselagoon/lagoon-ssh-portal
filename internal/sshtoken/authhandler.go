@@ -59,7 +59,7 @@ func pubKeyAuth(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 		authnSuccessTotal.Inc()
 		ctx.SetValue(userUUID, user.UUID)
 		log.Info("authentication successful",
-			slog.String("userID", user.UUID.String()))
+			slog.String("userUUID", user.UUID.String()))
 		return true
 	}
 }
