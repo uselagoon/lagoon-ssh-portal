@@ -2,29 +2,46 @@
 package metrics
 
 import (
-	"log/slog"
+	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/sync/errgroup"
 )
 
-// NewServer returns a *http.Server serving prometheus metrics in a new
-// goroutine.
-// Caller should defer Shutdown() for cleanup.
-func NewServer(log *slog.Logger, addr string) *http.Server {
+const (
+	metricsReadTimeout     = 2 * time.Second
+	metricsShutdownTimeout = 2 * time.Second
+)
+
+// Serve runs a prometheus metrics server in goroutines managed by eg. It will
+// gracefully exit with a two second timeout.
+// Callers should Wait() on eg before exiting.
+func Serve(ctx context.Context, eg *errgroup.Group, metricsPort string) {
+	// configure metrics server
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	s := http.Server{
-		Addr:         addr,
+	metricsSrv := http.Server{
+		Addr:         metricsPort,
+		ReadTimeout:  metricsReadTimeout,
+		WriteTimeout: metricsReadTimeout,
 		Handler:      mux,
-		ReadTimeout:  16 * time.Second,
-		WriteTimeout: 16 * time.Second,
 	}
-	go func() {
-		if err := s.ListenAndServe(); err != http.ErrServerClosed {
-			log.Error("metrics server did not shut down cleanly", slog.Any("error", err))
+	// start metrics server
+	eg.Go(func() error {
+		if err := metricsSrv.ListenAndServe(); err != http.ErrServerClosed {
+			return fmt.Errorf("metrics server exited with error: %v", err)
 		}
-	}()
-	return &s
+		return nil
+	})
+	// start metrics server shutdown handler for graceful shutdown
+	eg.Go(func() error {
+		<-ctx.Done()
+		timeoutCtx, cancel :=
+			context.WithTimeout(context.Background(), metricsShutdownTimeout)
+		defer cancel()
+		return metricsSrv.Shutdown(timeoutCtx)
+	})
 }

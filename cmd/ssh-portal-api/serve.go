@@ -13,6 +13,11 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"github.com/uselagoon/ssh-portal/internal/sshportalapi"
+	"golang.org/x/sync/errgroup"
+)
+
+const (
+	metricsPort = ":9911"
 )
 
 // ServeCmd represents the serve command.
@@ -31,10 +36,6 @@ type ServeCmd struct {
 
 // Run the serve command to ssh-portal API requests.
 func (cmd *ServeCmd) Run(log *slog.Logger) error {
-	// metrics needs a separate context because deferred Shutdown() will exit
-	// immediately the context is done, which is the case for ctx on SIGTERM.
-	m := metrics.NewServer(log, ":9911")
-	defer m.Shutdown(context.Background()) //nolint:errcheck
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
@@ -65,6 +66,14 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak client: %v", err)
 	}
-	// start serving NATS requests
-	return sshportalapi.ServeNATS(ctx, stop, log, p, l, k, cmd.NATSURL)
+	// set up goroutine handler
+	eg, ctx := errgroup.WithContext(ctx)
+	// start the metrics server
+	metrics.Serve(ctx, eg, metricsPort)
+	// start serving SSH token requests
+	eg.Go(func() error {
+		// start serving NATS requests
+		return sshportalapi.ServeNATS(ctx, stop, log, p, l, k, cmd.NATSURL)
+	})
+	return eg.Wait()
 }

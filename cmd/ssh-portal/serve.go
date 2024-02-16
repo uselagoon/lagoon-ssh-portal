@@ -12,6 +12,11 @@ import (
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
+	"golang.org/x/sync/errgroup"
+)
+
+const (
+	metricsPort = ":9912"
 )
 
 // ServeCmd represents the serve command.
@@ -26,10 +31,6 @@ type ServeCmd struct {
 
 // Run the serve command to handle SSH connection requests.
 func (cmd *ServeCmd) Run(log *slog.Logger) error {
-	// metrics needs a separate context because deferred Shutdown() will exit
-	// immediately the context is done, which is the case for ctx on SIGTERM.
-	m := metrics.NewServer(log, ":9912")
-	defer m.Shutdown(context.Background()) //nolint:errcheck
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
@@ -60,6 +61,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't listen on port %d: %v", cmd.SSHServerPort, err)
 	}
+	defer l.Close()
 	// get kubernetes client
 	c, err := k8s.NewClient()
 	if err != nil {
@@ -72,6 +74,14 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 			hostkeys = append(hostkeys, []byte(hk))
 		}
 	}
-	// start serving SSH connection requests
-	return sshserver.Serve(ctx, log, nc, l, c, hostkeys, cmd.LogAccessEnabled)
+	// set up goroutine handler
+	eg, ctx := errgroup.WithContext(ctx)
+	// start the metrics server
+	metrics.Serve(ctx, eg, metricsPort)
+	// start serving SSH token requests
+	eg.Go(func() error {
+		// start serving SSH connection requests
+		return sshserver.Serve(ctx, log, nc, l, c, hostkeys, cmd.LogAccessEnabled)
+	})
+	return eg.Wait()
 }
