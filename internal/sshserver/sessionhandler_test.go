@@ -1,7 +1,6 @@
 package sshserver_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -67,11 +66,11 @@ func TestExec(t *testing.T) {
 				tc.user,
 				tc.deployment,
 			).Return(tc.deployment, nil)
-			sshContext.EXPECT().Value(sshserver.CtxKey(0)).Return(0)
-			sshContext.EXPECT().Value(sshserver.CtxKey(1)).Return("test")
-			sshContext.EXPECT().Value(sshserver.CtxKey(2)).Return(0)
-			sshContext.EXPECT().Value(sshserver.CtxKey(3)).Return("project")
-			sshContext.EXPECT().Value(sshserver.CtxKey(4)).Return("fingerprint")
+			sshContext.EXPECT().Value(sshserver.EnvironmentIDKey).Return(0)
+			sshContext.EXPECT().Value(sshserver.EnvironmentNameKey).Return("test")
+			sshContext.EXPECT().Value(sshserver.ProjectIDKey).Return(0)
+			sshContext.EXPECT().Value(sshserver.ProjectNameKey).Return("project")
+			sshContext.EXPECT().Value(sshserver.SSHFingerprint).Return("fingerprint")
 			winch := make(<-chan ssh.Window)
 			sshSession.EXPECT().Pty().Return(ssh.Pty{}, winch, tc.pty)
 			sshSession.EXPECT().Stderr().Return(os.Stderr)
@@ -142,20 +141,18 @@ func TestLogs(t *testing.T) {
 				tc.user,
 				tc.deployment,
 			).Return(tc.deployment, nil)
-			sshContext.EXPECT().Value(sshserver.CtxKey(0)).Return(0)
-			sshContext.EXPECT().Value(sshserver.CtxKey(1)).Return("test")
-			sshContext.EXPECT().Value(sshserver.CtxKey(2)).Return(0)
-			sshContext.EXPECT().Value(sshserver.CtxKey(3)).Return("project")
-			sshContext.EXPECT().Value(sshserver.CtxKey(4)).Return("fingerprint")
+			sshContext.EXPECT().Value(sshserver.EnvironmentIDKey).Return(0)
+			sshContext.EXPECT().Value(sshserver.EnvironmentNameKey).Return("test")
+			sshContext.EXPECT().Value(sshserver.ProjectIDKey).Return(0)
+			sshContext.EXPECT().Value(sshserver.ProjectNameKey).Return("project")
+			sshContext.EXPECT().Value(sshserver.SSHFingerprint).Return("fingerprint")
 
-			// this call is executed by context.WithCancel()
-			sshContext.EXPECT().Value(gomock.Any()).Return(nil).Times(4)
+			// called by context.WithCancel()
+			sshContext.EXPECT().Value(gomock.Any()).Return(nil).AnyTimes()
 
 			sshContext.EXPECT().Done().Return(make(<-chan struct{})).AnyTimes()
-			childCtx, cancel := context.WithCancel(sshContext)
-			defer cancel()
 			k8sService.EXPECT().Logs(
-				childCtx,
+				gomock.Any(), // private childCtx
 				tc.user,
 				tc.deployment,
 				"",

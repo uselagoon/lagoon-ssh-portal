@@ -10,5 +10,11 @@ var ParseLogsArg = parseLogsArg
 // SessionHandler exposes the private sessionHandler for testing only.
 var SessionHandler = sessionHandler
 
-// CtxKey exposes the private ctxKey for testing only.
-type CtxKey = ctxKey
+// Exposes the private ctxKey constants for testing only.
+const (
+	EnvironmentIDKey   = environmentIDKey
+	EnvironmentNameKey = environmentNameKey
+	ProjectIDKey       = projectIDKey
+	ProjectNameKey     = projectNameKey
+	SSHFingerprint     = sshFingerprint
+)
