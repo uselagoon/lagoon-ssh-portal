@@ -89,12 +89,9 @@ func (c *Client) readLogs(ctx context.Context, requestID string,
 		if err != nil {
 			return fmt.Errorf("couldn't stream logs: %v", err)
 		}
-		// copy loop vars so they can be referenced in the closure
-		cName := cStatus.Name
-		cID := cStatus.ContainerID
 		egSend.Go(func() error {
-			defer c.logStreamIDs.Delete(cID)
-			linewiseCopy(ctx, fmt.Sprintf("[pod/%s/%s]", p.Name, cName), logs,
+			defer c.logStreamIDs.Delete(cStatus.ContainerID)
+			linewiseCopy(ctx, fmt.Sprintf("[pod/%s/%s]", p.Name, cStatus.Name), logs,
 				logStream)
 			// When a pod is terminating, the k8s API sometimes sends an event
 			// showing a healthy pod _after_ an existing logStream for the same pod
@@ -159,12 +156,15 @@ func (c *Client) newPodInformer(ctx context.Context,
 		return nil, fmt.Errorf("couldn't get deployment: %v", err)
 	}
 	// configure the informer factory, filtering on deployment selector labels
-	factory := informers.NewSharedInformerFactoryWithOptions(c.clientset,
-		time.Hour, informers.WithNamespace(namespace),
+	factory := informers.NewSharedInformerFactoryWithOptions(
+		c.clientset,
+		time.Hour,
+		informers.WithNamespace(namespace),
 		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
-			opts.LabelSelector = labels.SelectorFromSet(
-				d.Spec.Selector.MatchLabels).String()
-		}))
+			opts.LabelSelector =
+				labels.SelectorFromSet(d.Spec.Selector.MatchLabels).String()
+		}),
+	)
 	// construct the informer
 	podInformer := factory.Core().V1().Pods().Informer()
 	_, err = podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -273,8 +273,7 @@ func (c *Client) Logs(ctx context.Context,
 		if len(pods.Items) == 0 {
 			return fmt.Errorf("no pods for deployment %s", deployment)
 		}
-		for i := range pods.Items {
-			pod := pods.Items[i] // copy loop var so it can be referenced in the closure
+		for _, pod := range pods.Items {
 			egSend.Go(func() error {
 				readLogsErr := c.readLogs(childCtx, requestID, &egSend, &pod,
 					container, follow, tailLines, logs)
