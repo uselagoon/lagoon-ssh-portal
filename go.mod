@@ -14,8 +14,8 @@ require (
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.33.1
 	github.com/prometheus/client_golang v1.18.0
-	github.com/zitadel/oidc/v3 v3.11.2
-	go.opentelemetry.io/otel v1.23.1
+	github.com/zitadel/oidc/v3 v3.12.0
+	go.opentelemetry.io/otel v1.24.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.19.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
@@ -67,8 +67,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zitadel/logging v0.5.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
-	go.opentelemetry.io/otel/metric v1.23.1 // indirect
-	go.opentelemetry.io/otel/trace v1.23.1 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
