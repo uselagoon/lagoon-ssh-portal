@@ -30,8 +30,42 @@ var (
 	})
 )
 
+// authCtxValues extracts the context values set by the authhandler.
+func authCtxValues(ctx ssh.Context) (int, string, int, string, string, error) {
+	var ok bool
+	var eid, pid int
+	var ename, pname, fingerprint string
+	eid, ok = ctx.Value(environmentIDKey).(int)
+	if !ok {
+		return eid, ename, pid, pname, fingerprint,
+			fmt.Errorf("couldn't extract environment ID from session context")
+	}
+	ename, ok = ctx.Value(environmentNameKey).(string)
+	if !ok {
+		return eid, ename, pid, pname, fingerprint,
+			fmt.Errorf("couldn't extract environment name from session context")
+	}
+	pid, ok = ctx.Value(projectIDKey).(int)
+	if !ok {
+		return eid, ename, pid, pname, fingerprint,
+			fmt.Errorf("couldn't extract project ID from session context")
+	}
+	pname, ok = ctx.Value(projectNameKey).(string)
+	if !ok {
+		return eid, ename, pid, pname, fingerprint,
+			fmt.Errorf("couldn't extract project name from session context")
+	}
+	fingerprint, ok = ctx.Value(sshFingerprint).(string)
+	if !ok {
+		return eid, ename, pid, pname, fingerprint,
+			fmt.Errorf("couldn't extract SSH key fingerprint from session context")
+	}
+	return eid, ename, pid, pname, fingerprint, nil
+}
+
 // getSSHIntent analyses the SFTP flag and the raw command strings to determine
-// if the command should be wrapped.
+// if the command should be wrapped, and returns the given cmd wrapped
+// appropriately.
 func getSSHIntent(sftp bool, cmd []string) []string {
 	// if this is an sftp session we ignore any commands
 	if sftp {
@@ -104,25 +138,16 @@ func sessionHandler(log *slog.Logger, c K8SAPIService,
 			return
 		}
 		// extract info passed through the context by the authhandler
-		eid, ok := ctx.Value(environmentIDKey).(int)
-		if !ok {
-			log.Warn("couldn't extract environment ID from session context")
-		}
-		ename, ok := ctx.Value(environmentNameKey).(string)
-		if !ok {
-			log.Warn("couldn't extract environment name from session context")
-		}
-		pid, ok := ctx.Value(projectIDKey).(int)
-		if !ok {
-			log.Warn("couldn't extract project ID from session context")
-		}
-		pname, ok := ctx.Value(projectNameKey).(string)
-		if !ok {
-			log.Warn("couldn't extract project name from session context")
-		}
-		fingerprint, ok := ctx.Value(sshFingerprint).(string)
-		if !ok {
-			log.Warn("couldn't extract SSH key fingerprint from session context")
+		eid, ename, pid, pname, fingerprint, err := authCtxValues(ctx)
+		if err != nil {
+			log.Error("couldn't extract auth values from context",
+				slog.Any("error", err))
+			_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
+				ctx.SessionID())
+			if err != nil {
+				log.Debug("couldn't write to session stream", slog.Any("error", err))
+			}
+			return
 		}
 		if len(logs) != 0 {
 			if !logAccessEnabled {
