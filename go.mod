@@ -8,13 +8,13 @@ require (
 	github.com/alecthomas/kong v0.8.1
 	github.com/gliderlabs/ssh v0.3.6
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.33.1
 	github.com/prometheus/client_golang v1.19.0
-	github.com/zitadel/oidc/v3 v3.13.0
+	github.com/zitadel/oidc/v3 v3.14.0
 	go.opentelemetry.io/otel v1.24.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.21.0
