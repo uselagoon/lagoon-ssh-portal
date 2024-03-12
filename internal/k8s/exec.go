@@ -18,6 +18,10 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+const (
+	idleAnnotation = "idling.amazee.io/unidle-replicas"
+)
+
 // podContainer returns the first pod and first container inside that pod for
 // the given namespace and deployment.
 func (c *Client) podContainer(ctx context.Context, namespace,
@@ -68,7 +72,7 @@ func (c *Client) hasRunningPod(ctx context.Context,
 // replicas to restore. If the label cannot be read or parsed, 1 is returned.
 // The return value is clamped to the interval [1,16].
 func unidleReplicas(deploy appsv1.Deployment) int {
-	rs, ok := deploy.Annotations["idling.amazee.io/unidle-replicas"]
+	rs, ok := deploy.Annotations[idleAnnotation]
 	if !ok {
 		return 1
 	}

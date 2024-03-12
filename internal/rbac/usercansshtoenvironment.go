@@ -37,8 +37,13 @@ var defaultEnvTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
 // UserCanSSHToEnvironment returns true if the given environment can be
 // connected to via SSH by the user with the given realm roles and user groups,
 // and false otherwise.
-func (p *Permission) UserCanSSHToEnvironment(ctx context.Context, env *lagoondb.Environment,
-	realmRoles, userGroups []string, groupProjectIDs map[string][]int) bool {
+func (p *Permission) UserCanSSHToEnvironment(
+	ctx context.Context,
+	env *lagoondb.Environment,
+	realmRoles,
+	userGroups []string,
+	groupProjectIDs map[string][]int,
+) bool {
 	// set up tracing
 	_, span := otel.Tracer(pkgName).Start(ctx, "UserCanSSHToEnvironment")
 	defer span.End()
