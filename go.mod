@@ -6,7 +6,7 @@ require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
 	github.com/alecthomas/assert/v2 v2.6.0
 	github.com/alecthomas/kong v0.9.0
-	github.com/gliderlabs/ssh v0.3.6
+	github.com/gliderlabs/ssh v0.3.7
 	github.com/go-sql-driver/mysql v1.8.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
@@ -14,7 +14,7 @@ require (
 	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.33.1
 	github.com/prometheus/client_golang v1.19.0
-	github.com/zitadel/oidc/v3 v3.17.0
+	github.com/zitadel/oidc/v3 v3.18.0
 	go.opentelemetry.io/otel v1.24.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.21.0
