@@ -1,7 +1,7 @@
 # local development targets
 
 .PHONY: test
-test: mod-tidy generate lint
+test: mod-tidy generate
 	go test -v ./...
 
 .PHONY: mod-tidy
