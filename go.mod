@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/moby/spdystream v0.2.0
-	github.com/nats-io/nats.go v1.33.1
+	github.com/nats-io/nats.go v1.34.0
 	github.com/prometheus/client_golang v1.19.0
 	github.com/zitadel/oidc/v3 v3.18.0
 	go.opentelemetry.io/otel v1.24.0
