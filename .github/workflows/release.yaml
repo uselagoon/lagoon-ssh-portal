@@ -64,10 +64,18 @@ jobs:
     - name: Set up environment
       run: echo "GOVERSION=$(go version)" >> "$GITHUB_ENV"
     - uses: sigstore/cosign-installer@e1523de7571e31dbe865fd2e80c5c7c23ae71eb4 # v3.4.0
-    - uses: anchore/sbom-action/download-syft@9fece9e20048ca9590af301449208b2b8861333b # v0.15.9
+    - uses: advanced-security/sbom-generator-action@375dee8e6144d9fd0ec1f5667b4f6fb4faacefed # v0.0.1
+      id: sbom
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Move sbom to avoid dirty git
+      run: mv "$GITHUB_SBOM_PATH" ./sbom.spdx.json
+      env:
+        GITHUB_SBOM_PATH: ${{ steps.sbom.outputs.fileName }}
     - uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5.0.0
       with:
         version: latest
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_SBOM_PATH: ./sbom.spdx.json
