@@ -31,9 +31,6 @@ builds:
 changelog:
   use: github-native
 
-sboms:
-- artifacts: archive
-
 signs:
 - cmd: cosign
   signature: "${artifact}.sig"
@@ -138,3 +135,8 @@ docker_signs:
   - "--yes"
   artifacts: all
   output: true
+
+release:
+  extra_files:
+  - glob: "{{ .Env.GITHUB_SBOM_PATH }}"
+    name_template: "{{ .ProjectName }}.v{{ .Version }}.sbom.spdx.json"
