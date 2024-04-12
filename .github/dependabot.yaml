@@ -1,6 +1,9 @@
 version: 2
 updates:
 - package-ecosystem: github-actions
+  commit-message:
+    prefix: chore
+    include: scope
   directory: /
   schedule:
     interval: monthly
@@ -12,6 +15,9 @@ updates:
       - "minor"
       - "patch"
 - package-ecosystem: docker
+  commit-message:
+    prefix: chore
+    include: scope
   directory: /
   schedule:
     interval: monthly
@@ -23,6 +29,9 @@ updates:
       - "minor"
       - "patch"
 - package-ecosystem: gomod
+  commit-message:
+    prefix: chore
+    include: scope
   directory: /
   schedule:
     interval: monthly
