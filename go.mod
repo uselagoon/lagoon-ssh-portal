@@ -1,6 +1,6 @@
 module github.com/uselagoon/ssh-portal
 
-go 1.22
+go 1.22.2
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
