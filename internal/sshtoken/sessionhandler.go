@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 )
@@ -24,8 +25,8 @@ type KeycloakTokenService interface {
 // KeycloakUserInfoService provides methods for querying the Keycloak API for
 // permission information contained in service-api user tokens.
 type KeycloakUserInfoService interface {
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string,
-		map[string][]int, error)
+	lagoon.KeycloakService
+	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, error)
 }
 
 var (
@@ -124,12 +125,17 @@ func tokenSession(s ssh.Session, log *slog.Logger,
 // the user has access to, returns an error message to the user with the SSH
 // endpoint to use for ssh shell access. If the user doesn't have access to the
 // environment a generic error message is returned.
-func redirectSession(s ssh.Session, log *slog.Logger,
-	p *rbac.Permission, keycloakUserInfo KeycloakUserInfoService,
-	ldb LagoonDBService, uid *uuid.UUID) {
+func redirectSession(
+	s ssh.Session,
+	log *slog.Logger,
+	p *rbac.Permission,
+	keycloakUserInfo KeycloakUserInfoService,
+	ldb LagoonDBService,
+	uid *uuid.UUID,
+) {
 	ctx := s.Context()
 	// get the user roles and groups
-	realmRoles, userGroups, groupProjectIDs, err :=
+	realmRoles, userGroups, err :=
 		keycloakUserInfo.UserRolesAndGroups(s.Context(), uid)
 	if err != nil {
 		log.Error("couldn't query user roles and groups",
@@ -170,15 +176,22 @@ func redirectSession(s ssh.Session, log *slog.Logger,
 		slog.String("namespaceName", s.User()),
 		slog.String("projectName", env.ProjectName),
 	)
+	groupNameProjectIDsMap, err :=
+		lagoon.GroupNameProjectIDsMap(ctx, ldb, keycloakUserInfo, userGroups)
+	if err != nil {
+		log.Error("couldn't generate group name to project IDs map",
+			slog.Any("error", err))
+		return
+	}
 	// check permission
 	ok := p.UserCanSSHToEnvironment(s.Context(), env, realmRoles,
-		userGroups, groupProjectIDs)
+		userGroups, groupNameProjectIDsMap)
 	if !ok {
 		log.Info("user cannot SSH to environment")
 		log.Debug("user permissions",
 			slog.Any("realmRoles", realmRoles),
 			slog.Any("userGroups", userGroups),
-			slog.Any("groupProjectIDs", groupProjectIDs))
+			slog.Any("groupProjectIDs", groupNameProjectIDsMap))
 		_, err = fmt.Fprintf(s.Stderr(),
 			"This SSH server does not provide shell access. SID: %s\r\n",
 			ctx.SessionID())
@@ -192,7 +205,7 @@ func redirectSession(s ssh.Session, log *slog.Logger,
 	log.Debug("user permissions",
 		slog.Any("realmRoles", realmRoles),
 		slog.Any("userGroups", userGroups),
-		slog.Any("groupProjectIDs", groupProjectIDs))
+		slog.Any("groupProjectIDs", groupNameProjectIDsMap))
 	sshHost, sshPort, err := ldb.SSHEndpointByEnvironmentID(s.Context(), env.ID)
 	if err != nil {
 		if errors.Is(err, lagoondb.ErrNoResult) {

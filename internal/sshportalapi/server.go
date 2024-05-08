@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 )
@@ -21,13 +22,15 @@ const (
 
 // LagoonDBService provides methods for querying the Lagoon API DB.
 type LagoonDBService interface {
+	lagoon.DBService
 	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
 	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
 }
 
 // KeycloakService provides methods for querying the Keycloak API.
 type KeycloakService interface {
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, map[string][]int, error)
+	lagoon.KeycloakService
+	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, error)
 }
 
 // ServeNATS sshportalapi NATS requests.
