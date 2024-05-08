@@ -35,6 +35,13 @@ type User struct {
 	UUID *uuid.UUID `db:"uuid"`
 }
 
+// groupProjectMapping maps Lagoon group ID to project ID.
+// This type is only used for database unmarshalling.
+type groupProjectMapping struct {
+	GroupID   string `db:"group_id"`
+	ProjectID int    `db:"project_id"`
+}
+
 // ErrNoResult is returned by client methods if there is no result.
 var ErrNoResult = errors.New("no rows in result set")
 
@@ -55,7 +62,10 @@ func NewClient(ctx context.Context, dsn string) (*Client, error) {
 
 // EnvironmentByNamespaceName returns the Environment associated with the given
 // Namespace name (on Openshift this is the project name).
-func (c *Client) EnvironmentByNamespaceName(ctx context.Context, name string) (*Environment, error) {
+func (c *Client) EnvironmentByNamespaceName(
+	ctx context.Context,
+	name string,
+) (*Environment, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "EnvironmentByNamespaceName")
 	defer span.End()
@@ -84,7 +94,10 @@ func (c *Client) EnvironmentByNamespaceName(ctx context.Context, name string) (*
 
 // UserBySSHFingerprint returns the User associated with the given
 // SSH fingerprint.
-func (c *Client) UserBySSHFingerprint(ctx context.Context, fingerprint string) (*User, error) {
+func (c *Client) UserBySSHFingerprint(
+	ctx context.Context,
+	fingerprint string,
+) (*User, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserBySSHFingerprint")
 	defer span.End()
@@ -128,4 +141,29 @@ func (c *Client) SSHEndpointByEnvironmentID(ctx context.Context,
 		return "", "", err
 	}
 	return ssh.Host, ssh.Port, nil
+}
+
+// GroupIDProjectIDsMap returns a map of Group (UU)IDs to Project IDs.
+// This denotes Project Group membership in Lagoon.
+func (c *Client) GroupIDProjectIDsMap(
+	ctx context.Context,
+) (map[string][]int, error) {
+	var gpms []groupProjectMapping
+	err := c.db.SelectContext(ctx, &gpms, `
+	SELECT group_id, project_id
+	FROM kc_group_projects`)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoResult
+		}
+		return nil, err
+	}
+	groupIDProjectIDsMap := map[string][]int{}
+	// no need to check for duplicates here since the table has:
+	// UNIQUE KEY `group_project` (`group_id`,`project_id`)
+	for _, gpm := range gpms {
+		groupIDProjectIDsMap[gpm.GroupID] =
+			append(groupIDProjectIDsMap[gpm.GroupID], gpm.ProjectID)
+	}
+	return groupIDProjectIDsMap, nil
 }
