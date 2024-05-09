@@ -55,6 +55,15 @@ func (c *Client) rawGroups(ctx context.Context) ([]byte, error) {
 func (c *Client) GroupNameGroupIDMap(
 	ctx context.Context,
 ) (map[string]string, error) {
+	// rate limit keycloak API access
+	if err := c.limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("couldn't wait for limiter: %v", err)
+	}
+	// prefer to use cached value
+	if groupNameGroupIDMap, ok := c.groupCache.Get(); ok {
+		return groupNameGroupIDMap, nil
+	}
+	// otherwise get data from keycloak
 	data, err := c.rawGroups(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get groups from Keycloak API: %v", err)
@@ -67,5 +76,7 @@ func (c *Client) GroupNameGroupIDMap(
 	for _, group := range groups {
 		groupNameGroupIDMap[group.Name] = group.ID
 	}
+	// update cache
+	c.groupCache.Set(groupNameGroupIDMap)
 	return groupNameGroupIDMap, nil
 }

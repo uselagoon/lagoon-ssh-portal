@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/MicahParks/keyfunc/v2"
+	"github.com/uselagoon/ssh-portal/internal/cache"
 	oidcClient "github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"golang.org/x/time/rate"
@@ -28,6 +29,9 @@ type Client struct {
 	log          *slog.Logger
 	oidcConfig   *oidc.DiscoveryConfiguration
 	limiter      *rate.Limiter
+
+	// groupNameGroupIDMap cache
+	groupCache *cache.Cache[map[string]string]
 }
 
 // NewClient creates a new keycloak client for the lagoon realm.
@@ -59,5 +63,6 @@ func NewClient(ctx context.Context, log *slog.Logger, keycloakURL, clientID,
 		log:          log,
 		oidcConfig:   oidcConfig,
 		limiter:      rate.NewLimiter(rate.Limit(rateLimit), rateLimit),
+		groupCache:   cache.NewCache[map[string]string](),
 	}, nil
 }
