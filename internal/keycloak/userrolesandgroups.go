@@ -12,16 +12,15 @@ import (
 )
 
 // UserRolesAndGroups queries Keycloak given the user UUID, and returns the
-// user's realm roles, group memberships, and the project IDs associated with
-// those groups.
+// user's realm roles, and group memberships (by name, including subgroups).
 func (c *Client) UserRolesAndGroups(ctx context.Context,
-	userUUID *uuid.UUID) ([]string, []string, map[string][]int, error) {
+	userUUID *uuid.UUID) ([]string, []string, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserRolesAndGroups")
 	defer span.End()
 	// rate limit keycloak API access
 	if err := c.limiter.Wait(ctx); err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't wait for limiter: %v", err)
+		return nil, nil, fmt.Errorf("couldn't wait for limiter: %v", err)
 	}
 	// get user token
 	userConfig := oauth2.Config{
@@ -41,12 +40,12 @@ func (c *Client) UserRolesAndGroups(ctx context.Context,
 		// https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange
 		oauth2.SetAuthURLParam("requested_subject", userUUID.String()))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't get user token: %v", err)
+		return nil, nil, fmt.Errorf("couldn't get user token: %v", err)
 	}
 	// parse and extract verified attributes
 	claims, err := c.parseAccessToken(userToken, userUUID.String())
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't parse user access token: %v", err)
+		return nil, nil, fmt.Errorf("couldn't parse user access token: %v", err)
 	}
-	return claims.RealmRoles, claims.UserGroups, claims.GroupProjectIDs, nil
+	return claims.RealmRoles, claims.UserGroups, nil
 }

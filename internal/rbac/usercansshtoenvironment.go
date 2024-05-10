@@ -42,7 +42,7 @@ func (p *Permission) UserCanSSHToEnvironment(
 	env *lagoondb.Environment,
 	realmRoles,
 	userGroups []string,
-	groupProjectIDs map[string][]int,
+	groupNameProjectIDsMap map[string][]int,
 ) bool {
 	// set up tracing
 	_, span := otel.Tracer(pkgName).Start(ctx, "UserCanSSHToEnvironment")
@@ -71,7 +71,7 @@ func (p *Permission) UserCanSSHToEnvironment(
 	}
 	// check if the user is a member of a group containing the project and has
 	// the required role
-	for group, pids := range groupProjectIDs {
+	for groupName, pids := range groupNameProjectIDsMap {
 		for _, pid := range pids {
 			if pid == env.ProjectID {
 				// user is in the same group as project, check if they have the
@@ -79,7 +79,7 @@ func (p *Permission) UserCanSSHToEnvironment(
 				var validGroups []string
 				for _, role := range validRoles {
 					validGroups = append(validGroups,
-						fmt.Sprintf("/%s/%s-%s", group, group, role))
+						fmt.Sprintf("/%s/%s-%s", groupName, groupName, role))
 				}
 				for _, userGroup := range userGroups {
 					for _, validGroup := range validGroups {

@@ -29,13 +29,8 @@ func TestUnmarshalLagoonClaims(t *testing.T) {
 			"{\"credentialtest-group1\":[1]}",
 				"{\"ci-group\":[3,4,5,6,7,8,9,10,11,12,17,14,16,20,21,24,19,23,31]}"]}`),
 			expect: &keycloak.LagoonClaims{
-				RealmRoles: nil,
-				UserGroups: nil,
-				GroupProjectIDs: map[string][]int{
-					"credentialtest-group1": {1},
-					"ci-group": {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 17, 14, 16, 20, 21, 24,
-						19, 23, 31},
-				},
+				RealmRoles:       nil,
+				UserGroups:       nil,
 				RegisteredClaims: jwt.RegisteredClaims{},
 			},
 		},
@@ -97,11 +92,6 @@ func TestUnmarshalLagoonClaims(t *testing.T) {
 				UserGroups: []string{
 					"/ci-group/ci-group-owner",
 					"/credentialtest-group1/credentialtest-group1-owner"},
-				GroupProjectIDs: map[string][]int{
-					"credentialtest-group1": {1},
-					"ci-group": {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 17, 14, 16, 20, 21, 24,
-						19, 23, 31},
-				},
 				AuthorizedParty: "service-api",
 				RegisteredClaims: jwt.RegisteredClaims{
 					ID:       "ba279e79-4f38-43ae-83e7-fe461aad59d1",

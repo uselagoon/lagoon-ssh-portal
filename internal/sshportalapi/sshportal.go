@@ -8,6 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.opentelemetry.io/otel"
@@ -45,11 +46,16 @@ var (
 	})
 )
 
-func sshportal(ctx context.Context, log *slog.Logger, c *nats.EncodedConn,
-	p *rbac.Permission, l LagoonDBService, k KeycloakService) nats.Handler {
+func sshportal(
+	ctx context.Context,
+	log *slog.Logger,
+	c *nats.EncodedConn,
+	p *rbac.Permission,
+	l LagoonDBService,
+	k KeycloakService,
+) nats.Handler {
 	return func(_, replySubject string, query *SSHAccessQuery) {
 		var realmRoles, userGroups []string
-		var groupProjectIDs map[string][]int
 		// set up tracing and update metrics
 		ctx, span := otel.Tracer(pkgName).Start(ctx, SubjectSSHAccessQuery)
 		defer span.End()
@@ -101,23 +107,30 @@ func sshportal(ctx context.Context, log *slog.Logger, c *nats.EncodedConn,
 			return
 		}
 		// get the user roles and groups
-		realmRoles, userGroups, groupProjectIDs, err =
-			k.UserRolesAndGroups(ctx, user.UUID)
+		realmRoles, userGroups, err = k.UserRolesAndGroups(ctx, user.UUID)
 		if err != nil {
-			log.Error("couldn't query user roles and groups",
+			log.Error("couldn't query keycloak user roles and groups",
 				slog.String("userUUID", user.UUID.String()),
+				slog.Any("error", err))
+			return
+		}
+		// generate the group name to project IDs map
+		groupNameProjectIDsMap, err :=
+			lagoon.GroupNameProjectIDsMap(ctx, l, k, userGroups)
+		if err != nil {
+			log.Error("couldn't generate group name to project IDs map",
 				slog.Any("error", err))
 			return
 		}
 		log.Debug("keycloak user attributes",
 			slog.Any("realmRoles", realmRoles),
 			slog.Any("userGroups", userGroups),
-			slog.Any("groupProjectIDs", groupProjectIDs),
+			slog.Any("groupNameProjectIDsMap", groupNameProjectIDsMap),
 			slog.String("userUUID", user.UUID.String()),
 		)
 		// check permission
-		ok := p.UserCanSSHToEnvironment(ctx, env, realmRoles, userGroups,
-			groupProjectIDs)
+		ok := p.UserCanSSHToEnvironment(
+			ctx, env, realmRoles, userGroups, groupNameProjectIDsMap)
 		var logMsg string
 		if ok {
 			logMsg = "SSH access authorized"
