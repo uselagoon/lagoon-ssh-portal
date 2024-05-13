@@ -45,6 +45,7 @@ func Serve(
 	c *k8s.Client,
 	hostKeys [][]byte,
 	logAccessEnabled bool,
+	banner string,
 ) error {
 	srv := ssh.Server{
 		Handler: sessionHandler(log, c, false, logAccessEnabled),
@@ -53,6 +54,7 @@ func Serve(
 		},
 		PublicKeyHandler:     pubKeyAuth(log, nc, c),
 		ServerConfigCallback: disableSHA1Kex,
+		Banner:               banner,
 	}
 	for _, hk := range hostKeys {
 		if err := srv.SetOption(ssh.HostKeyPEM(hk)); err != nil {
