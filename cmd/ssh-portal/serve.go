@@ -26,7 +26,8 @@ type ServeCmd struct {
 	HostKeyECDSA     string `kong:"env='HOST_KEY_ECDSA',help='PEM encoded ECDSA host key'"`
 	HostKeyED25519   string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
 	HostKeyRSA       string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
-	LogAccessEnabled bool   `kong:"env='LOG_ACCESS_ENABLED',help='Allow any user who can SSH into a pod to also access its logs.'"`
+	LogAccessEnabled bool   `kong:"env='LOG_ACCESS_ENABLED',help='Allow any user who can SSH into a pod to also access its logs'"`
+	Banner           string `kong:"env='BANNER',help='Text sent to remote users before authentication'"`
 }
 
 // Run the serve command to handle SSH connection requests.
@@ -81,7 +82,8 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// start serving SSH token requests
 	eg.Go(func() error {
 		// start serving SSH connection requests
-		return sshserver.Serve(ctx, log, nc, l, c, hostkeys, cmd.LogAccessEnabled)
+		return sshserver.Serve(
+			ctx, log, nc, l, c, hostkeys, cmd.LogAccessEnabled, cmd.Banner)
 	})
 	return eg.Wait()
 }
