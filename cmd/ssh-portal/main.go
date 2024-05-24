@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
-	"github.com/moby/spdystream"
 )
 
 // CLI represents the command-line interface.
@@ -17,8 +16,6 @@ type CLI struct {
 }
 
 func main() {
-	// work around https://github.com/moby/spdystream/issues/87
-	spdystream.DEBUG = ""
 	// parse CLI config
 	cli := CLI{}
 	kctx := kong.Parse(&cli,

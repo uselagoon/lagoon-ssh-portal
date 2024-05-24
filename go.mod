@@ -11,7 +11,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/moby/spdystream v0.2.0
 	github.com/nats-io/nats.go v1.34.1
 	github.com/prometheus/client_golang v1.19.0
 	github.com/zitadel/oidc/v3 v3.23.2
@@ -54,6 +53,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.2 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect

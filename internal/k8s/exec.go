@@ -188,7 +188,7 @@ func (c *Client) getExecutor(ctx context.Context, namespace, deployment,
 		scheme.ParameterCodec,
 	)
 	// construct the executor
-	return remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+	return remotecommand.NewWebSocketExecutor(c.config, "POST", req.URL().String())
 }
 
 // Exec takes a target namespace, deployment, command, and IO streams, and
