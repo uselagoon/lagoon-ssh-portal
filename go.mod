@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
-	github.com/alecthomas/assert/v2 v2.9.0
+	github.com/alecthomas/assert/v2 v2.10.0
 	github.com/alecthomas/kong v0.9.0
 	github.com/gliderlabs/ssh v0.3.7
 	github.com/go-sql-driver/mysql v1.8.1
@@ -12,19 +12,19 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/moby/spdystream v0.2.0
-	github.com/nats-io/nats.go v1.34.1
-	github.com/prometheus/client_golang v1.19.0
-	github.com/zitadel/oidc/v3 v3.23.2
-	go.opentelemetry.io/otel v1.26.0
+	github.com/nats-io/nats.go v1.35.0
+	github.com/prometheus/client_golang v1.19.1
+	github.com/zitadel/oidc/v3 v3.24.0
+	go.opentelemetry.io/otel v1.27.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.23.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/oauth2 v0.20.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/time v0.5.0
-	k8s.io/api v0.30.0
-	k8s.io/apimachinery v0.30.0
-	k8s.io/client-go v0.30.0
+	k8s.io/api v0.30.1
+	k8s.io/apimachinery v0.30.1
+	k8s.io/client-go v0.30.1
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
 
@@ -36,7 +36,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
@@ -67,8 +67,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zitadel/logging v0.6.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
-	go.opentelemetry.io/otel/metric v1.26.0 // indirect
-	go.opentelemetry.io/otel/trace v1.26.0 // indirect
+	go.opentelemetry.io/otel/metric v1.27.0 // indirect
+	go.opentelemetry.io/otel/trace v1.27.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/term v0.20.0 // indirect
