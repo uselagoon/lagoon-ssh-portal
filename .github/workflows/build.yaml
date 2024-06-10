@@ -24,10 +24,11 @@ jobs:
       with:
         go-version: stable
     - run: echo "GOVERSION=$(go version)" >> "$GITHUB_ENV"
-    - uses: goreleaser/goreleaser-action@5742e2a039330cbb23ebf35f046f814d4c6ff811 # v5.1.0
+    - uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6.0.0
+      id: goreleaser
       with:
         version: latest
-        args: build --clean --debug --single-target --snapshot
+        args: build --clean --verbose --single-target --snapshot
     - name: Login to GHCR
       if: github.actor != 'dependabot[bot]'
       uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
@@ -52,3 +53,21 @@ jobs:
         file: Dockerfile
         build-args: BINARY=${{ matrix.binary }}
         context: dist/${{ matrix.binary }}_linux_amd64_v1
+  check-tag:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      with:
+        fetch-depth: 0
+    - id: ccv
+      uses: smlx/ccv@d3de774e9b607b079940a7a86952f44643743336 # v0.9.0
+      with:
+        write-tag: false
+    - run: |
+        echo "new-tag=$NEW_TAG"
+        echo "new-tag-version=$NEW_TAG_VERSION"
+      env:
+        NEW_TAG: ${{steps.ccv.outputs.new-tag}}
+        NEW_TAG_VERSION: ${{steps.ccv.outputs.new-tag-version}}

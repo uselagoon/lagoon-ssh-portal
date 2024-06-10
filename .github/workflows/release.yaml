@@ -11,40 +11,24 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     outputs:
-      new-tag: ${{ steps.bump-tag.outputs.new }}
-      new-tag-version: ${{ steps.bump-tag.outputs.new_tag_version }}
+      new-tag: ${{ steps.ccv.outputs.new-tag }}
     steps:
     - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       with:
         fetch-depth: 0
-    - name: Configure git
-      run: |
-        git config --global user.name "$GITHUB_ACTOR"
-        git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
-    - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
-      with:
-        go-version: stable
-    - name: Install ccv
-      run: >
-        curl -sSL https://github.com/smlx/ccv/releases/download/v0.3.2/ccv_0.3.2_linux_amd64.tar.gz
-        | sudo tar -xz -C /usr/local/bin ccv
     - name: Bump tag if necessary
-      id: bump-tag
-      run: |
-        if [ -z "$(git tag -l "$(ccv)")" ]; then
-          git tag "$(ccv)"
-          git push --tags
-          echo "new=true" >> "$GITHUB_OUTPUT"
-          echo "new_tag_version=$(git tag --points-at HEAD)" >> "$GITHUB_OUTPUT"
-        fi
+      id: ccv
+      uses: smlx/ccv@d3de774e9b607b079940a7a86952f44643743336 # v0.9.0
   release-build:
     permissions:
       # create release
       contents: write
-      # push docker images to regsitry
+      # push docker images to registry
       packages: write
       # use OIDC token for signing
       id-token: write
+      # required by attest-build-provenance
+      attestations: write
     needs: release-tag
     if: needs.release-tag.outputs.new-tag == 'true'
     runs-on: ubuntu-latest
@@ -63,7 +47,6 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Set up environment
       run: echo "GOVERSION=$(go version)" >> "$GITHUB_ENV"
-    - uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
     - uses: advanced-security/sbom-generator-action@375dee8e6144d9fd0ec1f5667b4f6fb4faacefed # v0.0.1
       id: sbom
       env:
@@ -72,10 +55,28 @@ jobs:
       run: mv "$GITHUB_SBOM_PATH" ./sbom.spdx.json
       env:
         GITHUB_SBOM_PATH: ${{ steps.sbom.outputs.fileName }}
-    - uses: goreleaser/goreleaser-action@5742e2a039330cbb23ebf35f046f814d4c6ff811 # v5.1.0
+    - uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6.0.0
+      id: goreleaser
       with:
         version: latest
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_SBOM_PATH: ./sbom.spdx.json
+    # parse artifacts to the format required for image attestation
+    - run: |
+        echo "digest=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test(":v"))|.extra.Digest')" >> "$GITHUB_OUTPUT"
+        echo "name=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test(":v"))|.name|split(":")[0]')" >> "$GITHUB_OUTPUT"
+      id: image_metadata
+      env:
+        ARTIFACTS: ${{steps.goreleaser.outputs.artifacts}}
+    # attest archives
+    - uses: actions/attest-build-provenance@49df96e17e918a15956db358890b08e61c704919 # v1.2.0
+      with:
+        subject-path: "dist/*.tar.gz"
+    # attest images
+    - uses: actions/attest-build-provenance@49df96e17e918a15956db358890b08e61c704919 # v1.2.0
+      with:
+        subject-digest: ${{steps.image_metadata.outputs.digest}}
+        subject-name: ${{steps.image_metadata.outputs.name}}
+        push-to-registry: true

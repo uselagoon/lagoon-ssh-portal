@@ -31,18 +31,6 @@ builds:
 changelog:
   use: github-native
 
-signs:
-- cmd: cosign
-  signature: "${artifact}.sig"
-  certificate: "${artifact}.pem"
-  args:
-  - "sign-blob"
-  - "--output-signature=${signature}"
-  - "--output-certificate=${certificate}"
-  - "${artifact}"
-  - "--yes"
-  artifacts: checksum
-
 dockers:
 # ssh-portal
 - ids:
@@ -127,14 +115,6 @@ docker_manifests:
   image_templates:
   - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
   - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
-
-docker_signs:
-- args:
-  - "sign"
-  - "${artifact}@${digest}"
-  - "--yes"
-  artifacts: all
-  output: true
 
 release:
   extra_files:
