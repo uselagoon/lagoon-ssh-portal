@@ -23,7 +23,7 @@ jobs:
       uses: vladopajic/go-test-coverage@1079cd4e58dda229c04ffdb6324fc3756b8542ff # v2.10.1
       with:
         profile: cover.out
-        local-prefix: github.com/uselagoon/lagoon-ssh-portal
+        local-prefix: github.com/${{ github.repository }}
         git-token: ${{ secrets.GITHUB_TOKEN }}
         # orphan branch for storing badges
         git-branch: badges
