@@ -63,20 +63,42 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_SBOM_PATH: ./sbom.spdx.json
-    # parse artifacts to the format required for image attestation
-    - run: |
-        echo "digest=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test(":v"))|.extra.Digest')" >> "$GITHUB_OUTPUT"
-        echo "name=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test(":v"))|.name|split(":")[0]')" >> "$GITHUB_OUTPUT"
-      id: image_metadata
-      env:
-        ARTIFACTS: ${{steps.goreleaser.outputs.artifacts}}
     # attest archives
     - uses: actions/attest-build-provenance@49df96e17e918a15956db358890b08e61c704919 # v1.2.0
       with:
         subject-path: "dist/*.tar.gz"
+    # parse artifacts to the format required for image attestation
+    - run: |
+        echo "digest=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test("ssh-portal:v"))|.extra.Digest')" >> "$GITHUB_OUTPUT"
+        echo "name=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test("ssh-portal:v"))|.name|split(":")[0]')" >> "$GITHUB_OUTPUT"
+      id: image_metadata_ssh_portal
+      env:
+        ARTIFACTS: ${{steps.goreleaser.outputs.artifacts}}
+    - run: |
+        echo "digest=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test("ssh-portal-api:v"))|.extra.Digest')" >> "$GITHUB_OUTPUT"
+        echo "name=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test("ssh-portal-api:v"))|.name|split(":")[0]')" >> "$GITHUB_OUTPUT"
+      id: image_metadata_ssh_portal_api
+      env:
+        ARTIFACTS: ${{steps.goreleaser.outputs.artifacts}}
+    - run: |
+        echo "digest=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test("ssh-token:v"))|.extra.Digest')" >> "$GITHUB_OUTPUT"
+        echo "name=$(echo "$ARTIFACTS" | jq -r '.[]|select(.type=="Docker Manifest")|select(.name|test("ssh-token:v"))|.name|split(":")[0]')" >> "$GITHUB_OUTPUT"
+      id: image_metadata_ssh_token
+      env:
+        ARTIFACTS: ${{steps.goreleaser.outputs.artifacts}}
     # attest images
     - uses: actions/attest-build-provenance@49df96e17e918a15956db358890b08e61c704919 # v1.2.0
       with:
-        subject-digest: ${{steps.image_metadata.outputs.digest}}
-        subject-name: ${{steps.image_metadata.outputs.name}}
+        subject-digest: ${{steps.image_metadata_ssh_portal.outputs.digest}}
+        subject-name: ${{steps.image_metadata_ssh_portal.outputs.name}}
+        push-to-registry: true
+    - uses: actions/attest-build-provenance@49df96e17e918a15956db358890b08e61c704919 # v1.2.0
+      with:
+        subject-digest: ${{steps.image_metadata_ssh_portal_api.outputs.digest}}
+        subject-name: ${{steps.image_metadata_ssh_portal_api.outputs.name}}
+        push-to-registry: true
+    - uses: actions/attest-build-provenance@49df96e17e918a15956db358890b08e61c704919 # v1.2.0
+      with:
+        subject-digest: ${{steps.image_metadata_ssh_token.outputs.digest}}
+        subject-name: ${{steps.image_metadata_ssh_token.outputs.name}}
         push-to-registry: true
