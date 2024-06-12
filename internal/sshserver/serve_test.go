@@ -8,17 +8,16 @@ import (
 )
 
 func TestDisableSHA1Kex(t *testing.T) {
-	var testCases = map[string]struct {
-		input  string
-		expect bool
-	}{
-		"no sha1": {input: "diffie-hellman-group14-sha1", expect: false},
-	}
-	for name, tc := range testCases {
-		t.Run(name, func(tt *testing.T) {
-			conf := disableSHA1Kex(nil)
-			assert.Equal(tt, tc.expect,
-				slices.Contains(conf.Config.KeyExchanges, tc.input), name)
-		})
-	}
+	t.Run("no sha1", func(tt *testing.T) {
+		conf := serverConfig(nil)
+		assert.Equal(tt, false,
+			slices.Contains(conf.Config.KeyExchanges, "diffie-hellman-group14-sha1"), "no sha1")
+	})
+}
+
+func TestMaxAuthTries(t *testing.T) {
+	t.Run("MaxAuthTries", func(tt *testing.T) {
+		conf := serverConfig(nil)
+		assert.Equal(tt, 18, conf.MaxAuthTries, "MaxAuthTries")
+	})
 }
