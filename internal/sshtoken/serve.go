@@ -25,6 +25,7 @@ type LagoonDBService interface {
 	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
 	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
 	SSHEndpointByEnvironmentID(context.Context, int) (string, string, error)
+	SSHKeyUsed(context.Context, string, time.Time) error
 }
 
 // Serve contains the main ssh session logic

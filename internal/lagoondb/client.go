@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -166,4 +167,30 @@ func (c *Client) GroupIDProjectIDsMap(
 			append(groupIDProjectIDsMap[gpm.GroupID], gpm.ProjectID)
 	}
 	return groupIDProjectIDsMap, nil
+}
+
+// SSHKeyUsed sets the last_used attribute of the ssh key identified by the
+// given fingerprint to used.
+//
+// The value of used is converted to UTC before being stored in a DATETIME
+// column in the MySQL database.
+func (c *Client) SSHKeyUsed(
+	ctx context.Context,
+	fingerprint string,
+	used time.Time,
+) error {
+	// set up tracing
+	ctx, span := otel.Tracer(pkgName).Start(ctx, "SSHKeyUsed")
+	defer span.End()
+	_, err := c.db.ExecContext(ctx,
+		`UPDATE ssh_key `+
+			`SET last_used = ? `+
+			`WHERE key_fingerprint = ?`,
+		used.UTC().Format(time.DateTime),
+		fingerprint)
+	if err != nil {
+		return fmt.Errorf("couldn't update last_used for key_fingerprint=%s: %v",
+			fingerprint, err)
+	}
+	return nil
 }
