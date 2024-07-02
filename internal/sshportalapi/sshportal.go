@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -104,6 +105,12 @@ func sshportal(
 				return
 			}
 			log.Error("couldn't query user by ssh fingerprint", slog.Any("error", err))
+			return
+		}
+		// update last_used
+		if err := l.SSHKeyUsed(ctx, query.SSHFingerprint, time.Now()); err != nil {
+			log.Error("couldn't update ssh key last used: %v",
+				slog.Any("error", err))
 			return
 		}
 		// get the user roles and groups

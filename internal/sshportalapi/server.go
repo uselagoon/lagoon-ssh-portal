@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
@@ -25,6 +26,7 @@ type LagoonDBService interface {
 	lagoon.DBService
 	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
 	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
+	SSHKeyUsed(context.Context, string, time.Time) error
 }
 
 // KeycloakService provides methods for querying the Keycloak API.

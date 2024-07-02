@@ -3,6 +3,7 @@ package sshtoken
 import (
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
@@ -51,6 +52,12 @@ func pubKeyAuth(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 				log.Warn("couldn't query for user by SSH key fingerprint",
 					slog.Any("error", err))
 			}
+			return false
+		}
+		// update last_used
+		if err := ldb.SSHKeyUsed(ctx, fingerprint, time.Now()); err != nil {
+			log.Error("couldn't update ssh key last used: %v",
+				slog.Any("error", err))
 			return false
 		}
 		// The SSH key fingerprint was in the database so "authentication" was
