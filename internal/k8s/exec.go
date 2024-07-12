@@ -18,8 +18,21 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-const (
-	idleAnnotation = "idling.amazee.io/unidle-replicas"
+var (
+	// idleReplicaAnnotations are used to determine how many replicas to set when
+	// scaling up a deployment from idle. The annotations are in priority order
+	// from high to low. The first annotation found on a deployment will be used.
+	idleReplicaAnnotations = []string{
+		"idling.lagoon.sh/unidle-replicas",
+		"idling.amazee.io/unidle-replicas",
+	}
+	// idleWatchLabels are used to select deployments to scale when unidling a
+	// namespace. The labels are in priority order from high to low. The first
+	// label found on any deployment will be used.
+	idleWatchLabels = []string{
+		"idling.lagoon.sh/watch=true",
+		"idling.amazee.io/watch=true",
+	}
 )
 
 // podContainer returns the first pod and first container inside that pod for
@@ -68,33 +81,57 @@ func (c *Client) hasRunningPod(ctx context.Context,
 	}
 }
 
-// unidleReplicas checks the unidle-replicas annotation for the number of
-// replicas to restore. If the label cannot be read or parsed, 1 is returned.
-// The return value is clamped to the interval [1,16].
+// unidleReplicas checks the idleReplicaAnnotations for the number of replicas
+// to restore. If the labels cannot be found or parsed, 1 is returned. The
+// return value is clamped to the interval [1,16].
 func unidleReplicas(deploy appsv1.Deployment) int {
-	rs, ok := deploy.Annotations[idleAnnotation]
-	if !ok {
-		return 1
+	for _, ra := range idleReplicaAnnotations {
+		rs, ok := deploy.Annotations[ra]
+		if !ok {
+			continue
+		}
+		r, err := strconv.Atoi(rs)
+		if err != nil || r < 1 {
+			return 1
+		}
+		if r > 16 {
+			return 16
+		}
+		return r
 	}
-	r, err := strconv.Atoi(rs)
-	if err != nil || r < 1 {
-		return 1
-	}
-	if r > 16 {
-		return 16
-	}
-	return r
+	return 1
 }
 
-// unidleNamespace scales all deployments with the
-// "idling.amazee.io/watch=true" label up to the number of replicas in the
-// "idling.amazee.io/unidle-replicas" label.
+// idledDeploys returns the DeploymentList of idled deployments in the given
+// namespace.
+func (c *Client) idledDeploys(ctx context.Context, namespace string) (
+	*appsv1.DeploymentList, error,
+) {
+	var deploys *appsv1.DeploymentList
+	for _, selector := range idleWatchLabels {
+		deploys, err := c.clientset.AppsV1().Deployments(namespace).List(ctx,
+			metav1.ListOptions{
+				LabelSelector: selector,
+			})
+		if err != nil {
+			return nil, fmt.Errorf("couldn't select deploys by label: %v", err)
+		}
+		if deploys != nil && len(deploys.Items) > 0 {
+			return deploys, nil
+		}
+	}
+	return deploys, nil
+}
+
+// unidleNamespace scales all deployments with the idleWatchLabels up to the
+// number of replicas in the idleReplicaAnnotations.
 func (c *Client) unidleNamespace(ctx context.Context, namespace string) error {
-	deploys, err := c.clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "idling.amazee.io/watch=true",
-	})
+	deploys, err := c.idledDeploys(ctx, namespace)
 	if err != nil {
-		return fmt.Errorf("couldn't select deploys by label: %v", err)
+		return fmt.Errorf("couldn't get idled deploys: %v", err)
+	}
+	if deploys == nil {
+		return nil // no deploys to unidle
 	}
 	for _, deploy := range deploys.Items {
 		// check if idled
