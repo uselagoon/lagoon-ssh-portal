@@ -70,7 +70,7 @@ func Serve(
 			log.Warn("couldn't shutdown cleanly", slog.Any("error", err))
 		}
 	}()
-	if err := srv.Serve(l); !errors.Is(ssh.ErrServerClosed, err) {
+	if err := srv.Serve(l); !errors.Is(err, ssh.ErrServerClosed) {
 		return err
 	}
 	return nil

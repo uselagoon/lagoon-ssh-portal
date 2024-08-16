@@ -9,36 +9,12 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/uselagoon/ssh-portal/internal/bus"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 	"go.opentelemetry.io/otel"
 )
-
-const (
-	// SubjectSSHAccessQuery defines the NATS subject for SSH access queries.
-	SubjectSSHAccessQuery = "lagoon.sshportal.api"
-)
-
-// SSHAccessQuery defines the structure of an SSH access query.
-type SSHAccessQuery struct {
-	SSHFingerprint string
-	NamespaceName  string
-	ProjectID      int
-	EnvironmentID  int
-	SessionID      string
-}
-
-// LogValue implements the slog.LogValuer interface.
-func (q SSHAccessQuery) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("sshFingerprint", q.SSHFingerprint),
-		slog.String("namespaceName", q.NamespaceName),
-		slog.Int("projectID", q.ProjectID),
-		slog.Int("environmentID", q.EnvironmentID),
-		slog.String("sessionID", q.SessionID),
-	)
-}
 
 var (
 	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
@@ -55,10 +31,10 @@ func sshportal(
 	l LagoonDBService,
 	k KeycloakService,
 ) nats.Handler {
-	return func(_, replySubject string, query *SSHAccessQuery) {
+	return func(_, replySubject string, query *bus.SSHAccessQuery) {
 		var realmRoles, userGroups []string
 		// set up tracing and update metrics
-		ctx, span := otel.Tracer(pkgName).Start(ctx, SubjectSSHAccessQuery)
+		ctx, span := otel.Tracer(pkgName).Start(ctx, bus.SubjectSSHAccessQuery)
 		defer span.End()
 		requestsCounter.Inc()
 		log := log.With(slog.Any("query", query))

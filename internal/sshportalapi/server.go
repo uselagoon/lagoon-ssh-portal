@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
+	"github.com/uselagoon/ssh-portal/internal/bus"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
@@ -36,8 +37,15 @@ type KeycloakService interface {
 }
 
 // ServeNATS sshportalapi NATS requests.
-func ServeNATS(ctx context.Context, stop context.CancelFunc, log *slog.Logger,
-	p *rbac.Permission, l LagoonDBService, k KeycloakService, natsURL string) error {
+func ServeNATS(
+	ctx context.Context,
+	stop context.CancelFunc,
+	log *slog.Logger,
+	p *rbac.Permission,
+	l LagoonDBService,
+	k KeycloakService,
+	natsURL string,
+) error {
 	// setup synchronisation
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -65,7 +73,7 @@ func ServeNATS(ctx context.Context, stop context.CancelFunc, log *slog.Logger,
 	}
 	defer nc.Close()
 	// set up request/response callback for sshportal
-	_, err = nc.QueueSubscribe(SubjectSSHAccessQuery, queue,
+	_, err = nc.QueueSubscribe(bus.SubjectSSHAccessQuery, queue,
 		sshportal(ctx, log, nc, p, l, k))
 	if err != nil {
 		return fmt.Errorf("couldn't subscribe to queue: %v", err)
