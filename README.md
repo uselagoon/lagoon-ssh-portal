@@ -157,3 +157,16 @@ If a user gets an error from a Lagoon SSH service it may not contain much detail
 However, errors returned to the user will contain a unique Session ID (SID).
 This SID is also logged to the standard error of the SSH service along with any errors, so it will appear in the container logs along with more detail about exactly what went wrong.
 This helps to correlate error messages reported by users with detailed errors in service logs visible only to administrators.
+
+## Development tips
+
+### Debugging Keycloak permissions
+
+A command to debug Keycloak permissions locally is included in `./cmd/keycloak-debug`.
+This command uses the same Keycloak client and permissions code as the `ssh-portal-api`.
+Run it to dump the Keycloak `group-name:group-id` map, and easily reproduce any errors.
+
+```bash
+export KEYCLOAK_BASE_URL=http://lagoon-keycloak.example.com/ KEYCLOAK_SERVICE_API_CLIENT_SECRET=abc-123
+go run ./cmd/keycloak-debug
+```
