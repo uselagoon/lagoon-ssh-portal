@@ -3,35 +3,36 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
+	"github.com/google/uuid"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
-	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"go.opentelemetry.io/otel"
 )
 
 const pkgName = "github.com/uselagoon/ssh-portal/internal/rbac"
 
-// Default permission map of environment type to roles which can SSH.
-//
-// By default:
-// - Developer and higher can SSH to development environments.
-// - Maintainer and higher can SSH to production environments.
-//
-// See https://docs.lagoon.sh/administering-lagoon/rbac/#group-roles for more
-// information.
-//
-// Note that this does not affect the platform-owner role, which can always SSH
-// to any environment.
-var defaultEnvTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
-	lagoon.Development: {
-		lagoon.Developer,
-		lagoon.Maintainer,
-		lagoon.Owner,
-	},
-	lagoon.Production: {
-		lagoon.Maintainer,
-		lagoon.Owner,
-	},
+// calculateUserCanSSHToEnvironment takes a slice of project Group IDs
+// (the direct project group as well as any ancestor groups), a map of user
+// group IDs to Lagoon user roles, and a map of user roles to access
+// permissions.
+// This function returns true if the user is a member of any of the given
+// project groups, with a role that permits SSH access, and false otherwise.
+func calculateUserCanSSHToEnvironment(
+	projectGroupIDs []uuid.UUID,
+	userGroupIDRole map[uuid.UUID]lagoon.UserRole,
+	sshRoles map[lagoon.UserRole]bool,
+) bool {
+	for _, pgid := range projectGroupIDs {
+		userRole, ok := userGroupIDRole[pgid]
+		if !ok {
+			continue
+		}
+		if sshRoles[userRole] {
+			return true
+		}
+	}
+	return false
 }
 
 // UserCanSSHToEnvironment returns true if the given environment can be
@@ -39,57 +40,52 @@ var defaultEnvTypeRoleCanSSH = map[lagoon.EnvironmentType][]lagoon.UserRole{
 // and false otherwise.
 func (p *Permission) UserCanSSHToEnvironment(
 	ctx context.Context,
-	env *lagoondb.Environment,
-	realmRoles,
-	userGroups []string,
-	groupNameProjectIDsMap map[string][]int,
-) bool {
+	log *slog.Logger,
+	userUUID uuid.UUID,
+	projectID int,
+	envType lagoon.EnvironmentType,
+) (bool, error) {
 	// set up tracing
 	_, span := otel.Tracer(pkgName).Start(ctx, "UserCanSSHToEnvironment")
 	defer span.End()
+	// get the user roles and group paths
+	realmRoles, userGroupPaths, err := p.keycloak.UserRolesAndGroups(ctx, userUUID)
+	if err != nil {
+		return false,
+			fmt.Errorf("couldn't query roles and groups for user %v: %v", userUUID, err)
+	}
 	// check for platform owner
 	for _, r := range realmRoles {
 		if r == "platform-owner" {
-			return true
+			log.Debug("granting permission due to platform-owner realm role",
+				slog.Any("realmRoles", realmRoles))
+			return true, nil
 		}
 	}
-	validRoles := p.envTypeRoleCanSSH[env.Type]
-	// check if the user is directly a member of the project group and has the
-	// required role
-	var validProjectGroups []string
-	for _, role := range validRoles {
-		validProjectGroups = append(validProjectGroups,
-			fmt.Sprintf("/project-%s/project-%s-%s",
-				env.ProjectName, env.ProjectName, role))
+	// convert the group paths to group ID -> role map
+	userGroupIDRole := p.keycloak.UserGroupIDRole(ctx, userGroupPaths)
+	// get the IDs of all groups the project is in
+	projectGroupIDs, err := p.lagoonDB.ProjectGroupIDs(ctx, projectID)
+	if err != nil {
+		return false,
+			fmt.Errorf("couldn't get group IDs for project %v: %v", projectID, err)
 	}
-	for _, userGroup := range userGroups {
-		for _, validProjectGroup := range validProjectGroups {
-			if userGroup == validProjectGroup {
-				return true
-			}
-		}
+	// expand the group IDs for the project with any ancestor groups, since the
+	// user's membership of all ancestor groups should be considered when
+	// calculating permissions.
+	ancestorGroups, err := p.keycloak.AncestorGroups(ctx, projectGroupIDs)
+	if err != nil {
+		return false,
+			fmt.Errorf("couldn't expand project group IDs %v: %v", projectID, err)
 	}
-	// check if the user is a member of a group containing the project and has
-	// the required role
-	for groupName, pids := range groupNameProjectIDsMap {
-		for _, pid := range pids {
-			if pid == env.ProjectID {
-				// user is in the same group as project, check if they have the
-				// required role
-				var validGroups []string
-				for _, role := range validRoles {
-					validGroups = append(validGroups,
-						fmt.Sprintf("/%s/%s-%s", groupName, groupName, role))
-				}
-				for _, userGroup := range userGroups {
-					for _, validGroup := range validGroups {
-						if userGroup == validGroup {
-							return true
-						}
-					}
-				}
-			}
-		}
-	}
-	return false
+	sshRoles := p.envTypeRoleCanSSH[envType]
+	log.Debug("assessing permission",
+		slog.Any("realmRoles", realmRoles),
+		slog.Any("userGroupIDRole", userGroupIDRole),
+		slog.Any("projectGroupIDs", projectGroupIDs),
+		slog.Any("sshRoles", sshRoles),
+		slog.String("userID", userUUID.String()),
+	)
+	return calculateUserCanSSHToEnvironment(
+		ancestorGroups, userGroupIDRole, sshRoles), nil
 }

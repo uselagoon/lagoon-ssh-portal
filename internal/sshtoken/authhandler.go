@@ -15,7 +15,7 @@ import (
 type ctxKey int
 
 const (
-	userUUID ctxKey = iota
+	userUUIDkey ctxKey = iota
 )
 
 var (
@@ -64,7 +64,7 @@ func pubKeyAuth(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 		// successful. Inject the user UUID into the context so it can be used in
 		// the session handler.
 		authnSuccessTotal.Inc()
-		ctx.SetValue(userUUID, user.UUID)
+		ctx.SetValue(userUUIDkey, user.UUID)
 		log.Info("authentication successful",
 			slog.String("userUUID", user.UUID.String()))
 		return true

@@ -2,353 +2,393 @@ package rbac_test
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
-	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
+	"github.com/uselagoon/ssh-portal/internal/rbac/mock"
+	"go.uber.org/mock/gomock"
 )
 
-type args struct {
-	env             *lagoondb.Environment
-	realmRoles      []string
-	userGroups      []string
-	groupProjectIDs map[string][]int
-}
-
 func TestUserCanSSHDefaultRBAC(t *testing.T) {
+	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	var testCases = map[string]struct {
-		input  *args
-		expect bool
+		// input
+		userUUID  uuid.UUID
+		projectID int
+		envType   lagoon.EnvironmentType
+		// mock data
+		realmRoles      []string
+		userGroupPaths  []string
+		userGroupIDRole map[uuid.UUID]lagoon.UserRole
+		projectGroupIDs []uuid.UUID
+		// ancestorGroups must be a superset of projectGroupIDs
+		ancestorGroups []uuid.UUID
+		// this flag avoids setting up mock expectations when realm role attributes
+		// mean RBAC logic is short-circuited
+		realmRoleShortCircuit bool
+		// expectations
+		permissionDefault         bool
+		permissionBlockDevelopers bool
 	}{
-		"wrong project": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
+		"maintainer wrong project dev": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Development,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 			},
-			userGroups: []string{
+			userGroupPaths: []string{
 				"/project-foo/project-foo-maintainer",
 			},
-			groupProjectIDs: map[string][]int{
-				"project-foo": {3},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Maintainer,
 			},
-		}, expect: false},
-		"right project": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"),
 			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+			},
+			permissionDefault:         false,
+			permissionBlockDevelopers: false,
+		},
+		"owner wrong project prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 			},
-			userGroups: []string{
-				"/project-bar/project-bar-maintainer",
-			},
-			groupProjectIDs: map[string][]int{
-				"project-bar": {4},
-			},
-		}, expect: true},
-		"not group member": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
+			userGroupPaths: []string{
 				"/customer-a/customer-a-maintainer",
 			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Owner,
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"): lagoon.Maintainer,
 			},
-		}, expect: false},
-		"group member": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
 			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			},
+			permissionDefault:         false,
+			permissionBlockDevelopers: false,
+		},
+		"maintainer ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 			},
-			userGroups: []string{
+			userGroupPaths: []string{
+				"/project-bar/project-bar-maintainer",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Maintainer,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"maintainer ssh to dev": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Development,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupPaths: []string{
 				"/customer-b/customer-b-maintainer",
 			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Maintainer,
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"): lagoon.Maintainer,
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"): lagoon.Maintainer,
 			},
-		}, expect: true},
-		"platform-owner": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
 			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"parent group maintainer ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"): lagoon.Maintainer,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"grandparent group maintainer ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"): lagoon.Maintainer,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"grandparent group developer ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"): lagoon.Developer,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			},
+			permissionDefault:         false,
+			permissionBlockDevelopers: false,
+		},
+		"grandparent group developer ssh to dev": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Development,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"): lagoon.Developer,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+				uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: false,
+		},
+		"platform-owner ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 				"platform-owner",
 			},
-			userGroups: []string{
-				"/lagoonadmin",
-			},
-		}, expect: true},
-		"developer can't ssh to prod": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
+			realmRoleShortCircuit:     true,
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"developer ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 			},
-			userGroups: []string{
-				"/customer-b/customer-b-developer",
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Developer,
 			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 			},
-		}, expect: false},
-		"developer can ssh to dev": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "pr-123",
-				NamespaceName: "project-bar-pr-123",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Development,
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 			},
+			permissionDefault:         false,
+			permissionBlockDevelopers: false,
+		},
+		"developer ssh to dev": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Development,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 			},
-			userGroups: []string{
-				"/customer-b/customer-b-developer",
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Developer,
 			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 			},
-		}, expect: true},
-		"owner can ssh to prod": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: false,
+		},
+		"owner ssh to prod": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Production,
 			realmRoles: []string{
 				"offline_access",
 				"uma_authorization",
 			},
-			userGroups: []string{
-				"/customer-b/customer-b-owner",
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Owner,
 			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 			},
-		}, expect: true},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"owner ssh to dev": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Development,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Owner,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			permissionDefault:         true,
+			permissionBlockDevelopers: true,
+		},
+		"guest ssh to dev": {
+			userUUID:  uuid.UUID{},
+			projectID: 4,
+			envType:   lagoon.Development,
+			realmRoles: []string{
+				"offline_access",
+				"uma_authorization",
+			},
+			userGroupIDRole: map[uuid.UUID]lagoon.UserRole{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"): lagoon.Guest,
+			},
+			projectGroupIDs: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			ancestorGroups: []uuid.UUID{
+				uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			},
+			permissionDefault:         false,
+			permissionBlockDevelopers: false,
+		},
 	}
-	p := rbac.NewPermission()
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			response := p.UserCanSSHToEnvironment(context.Background(),
-				tc.input.env, tc.input.realmRoles, tc.input.userGroups,
-				tc.input.groupProjectIDs)
-			if response != tc.expect {
-				tt.Fatalf("expected %v, got %v", tc.expect, response)
+			ctx := context.Background()
+			// set up mocks
+			ctrl := gomock.NewController(tt)
+			defer ctrl.Finish()
+			kcService := mock.NewMockKeycloakService(ctrl)
+			kcService.EXPECT().
+				UserRolesAndGroups(ctx, tc.userUUID).
+				Return(tc.realmRoles, tc.userGroupPaths, nil).
+				Times(2)
+			ldbService := mock.NewMockLagoonDBService(ctrl)
+			if !tc.realmRoleShortCircuit {
+				kcService.EXPECT().
+					UserGroupIDRole(ctx, tc.userGroupPaths).
+					Return(tc.userGroupIDRole).
+					Times(2)
+				ldbService.EXPECT().
+					ProjectGroupIDs(ctx, tc.projectID).
+					Return(tc.projectGroupIDs, nil).
+					Times(2)
+				kcService.EXPECT().
+					AncestorGroups(ctx, tc.projectGroupIDs).
+					Return(tc.ancestorGroups, nil).
+					Times(2)
 			}
-		})
-	}
-}
-
-func TestUserCanSSHCustomRBAC(t *testing.T) {
-	var testCases = map[string]struct {
-		input  *args
-		expect bool
-	}{
-		"wrong project": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/project-foo/project-foo-maintainer",
-			},
-			groupProjectIDs: map[string][]int{
-				"project-foo": {3},
-			},
-		}, expect: false},
-		"right project": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/project-bar/project-bar-maintainer",
-			},
-			groupProjectIDs: map[string][]int{
-				"project-bar": {4},
-			},
-		}, expect: true},
-		"not group member": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/customer-a/customer-a-maintainer",
-			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
-			},
-		}, expect: false},
-		"group member": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/customer-b/customer-b-maintainer",
-			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
-			},
-		}, expect: true},
-		"platform-owner": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-				"platform-owner",
-			},
-			userGroups: []string{
-				"/lagoonadmin",
-			},
-		}, expect: true},
-		"developer can't ssh to prod": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/customer-b/customer-b-developer",
-			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
-			},
-		}, expect: false},
-		"developer can NOT ssh to dev": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "pr-123",
-				NamespaceName: "project-bar-pr-123",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Development,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/customer-b/customer-b-developer",
-			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
-			},
-		}, expect: false},
-		"owner can ssh to prod": {input: &args{
-			env: &lagoondb.Environment{
-				Name:          "production",
-				NamespaceName: "project-bar-production",
-				ProjectID:     4,
-				ProjectName:   "project-bar",
-				Type:          lagoon.Production,
-			},
-			realmRoles: []string{
-				"offline_access",
-				"uma_authorization",
-			},
-			userGroups: []string{
-				"/customer-b/customer-b-owner",
-			},
-			groupProjectIDs: map[string][]int{
-				"customer-b": {4},
-			},
-		}, expect: true},
-	}
-	p := rbac.NewPermission(rbac.BlockDeveloperSSH())
-	for name, tc := range testCases {
-		t.Run(name, func(tt *testing.T) {
-			response := p.UserCanSSHToEnvironment(context.Background(),
-				tc.input.env, tc.input.realmRoles, tc.input.userGroups,
-				tc.input.groupProjectIDs)
-			if response != tc.expect {
-				tt.Fatalf("expected %v, got %v", tc.expect, response)
+			// test default permission engine
+			permDefault := rbac.NewPermission(kcService, ldbService)
+			ok, err := permDefault.UserCanSSHToEnvironment(
+				ctx,
+				log,
+				tc.userUUID,
+				tc.projectID,
+				tc.envType,
+			)
+			if err != nil {
+				tt.Fatalf("couldn't perform user SSH permisison check: %v", err)
+			}
+			if ok != tc.permissionDefault {
+				tt.Fatalf("expected %v, got %v", tc.permissionDefault, ok)
+			}
+			// test alternative permission engine which blocks developer SSH access
+			permBlockDev := rbac.NewPermission(
+				kcService,
+				ldbService,
+				rbac.BlockDeveloperSSH(),
+			)
+			ok, err = permBlockDev.UserCanSSHToEnvironment(
+				ctx,
+				log,
+				tc.userUUID,
+				tc.projectID,
+				tc.envType,
+			)
+			if err != nil {
+				tt.Fatalf("couldn't perform user SSH permisison check: %v", err)
+			}
+			if ok != tc.permissionBlockDevelopers {
+				tt.Fatalf("expected %v, got %v", tc.permissionDefault, ok)
 			}
 		})
 	}

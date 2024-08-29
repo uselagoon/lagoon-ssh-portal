@@ -9,10 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/bus"
-	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 )
@@ -24,16 +22,9 @@ const (
 
 // LagoonDBService provides methods for querying the Lagoon API DB.
 type LagoonDBService interface {
-	lagoon.DBService
 	EnvironmentByNamespaceName(context.Context, string) (*lagoondb.Environment, error)
 	UserBySSHFingerprint(context.Context, string) (*lagoondb.User, error)
 	SSHKeyUsed(context.Context, string, time.Time) error
-}
-
-// KeycloakService provides methods for querying the Keycloak API.
-type KeycloakService interface {
-	lagoon.KeycloakService
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, error)
 }
 
 // ServeNATS sshportalapi NATS requests.
@@ -42,8 +33,7 @@ func ServeNATS(
 	stop context.CancelFunc,
 	log *slog.Logger,
 	p *rbac.Permission,
-	l LagoonDBService,
-	k KeycloakService,
+	ldb LagoonDBService,
 	natsURL string,
 ) error {
 	// setup synchronisation
@@ -72,7 +62,7 @@ func ServeNATS(
 	_, err = nc.QueueSubscribe(
 		bus.SubjectSSHAccessQuery,
 		queue,
-		sshportal(ctx, log, nc, p, l, k),
+		sshportal(ctx, log, nc, p, ldb),
 	)
 	if err != nil {
 		return fmt.Errorf("couldn't subscribe to queue: %v", err)

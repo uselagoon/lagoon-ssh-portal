@@ -45,13 +45,6 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
-	// init RBAC permission engine
-	var p *rbac.Permission
-	if cmd.BlockDeveloperSSH {
-		p = rbac.NewPermission(rbac.BlockDeveloperSSH())
-	} else {
-		p = rbac.NewPermission()
-	}
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
 	dbConf.Addr = cmd.APIDBAddress
@@ -81,6 +74,13 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak permission client: %v", err)
 	}
+	// init RBAC permission engine
+	var p *rbac.Permission
+	if cmd.BlockDeveloperSSH {
+		p = rbac.NewPermission(keycloakPermission, ldb, rbac.BlockDeveloperSSH())
+	} else {
+		p = rbac.NewPermission(keycloakPermission, ldb)
+	}
 	// start listening on TCP port
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", cmd.SSHServerPort))
 	if err != nil {
@@ -101,8 +101,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	metrics.Serve(ctx, eg, metricsPort)
 	// start serving SSH token requests
 	eg.Go(func() error {
-		return sshtoken.Serve(ctx, log, l, p, ldb, keycloakToken, keycloakPermission,
-			hostkeys)
+		return sshtoken.Serve(ctx, log, l, p, ldb, keycloakToken, hostkeys)
 	})
 	return eg.Wait()
 }

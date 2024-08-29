@@ -36,13 +36,6 @@ type User struct {
 	UUID *uuid.UUID `db:"uuid"`
 }
 
-// groupProjectMapping maps Lagoon group ID to project ID.
-// This type is only used for database unmarshalling.
-type groupProjectMapping struct {
-	GroupID   string `db:"group_id"`
-	ProjectID int    `db:"project_id"`
-}
-
 // ErrNoResult is returned by client methods if there is no result.
 var ErrNoResult = errors.New("no rows in result set")
 
@@ -144,31 +137,6 @@ func (c *Client) SSHEndpointByEnvironmentID(ctx context.Context,
 	return ssh.Host, ssh.Port, nil
 }
 
-// GroupIDProjectIDsMap returns a map of Group (UU)IDs to Project IDs.
-// This denotes Project Group membership in Lagoon.
-func (c *Client) GroupIDProjectIDsMap(
-	ctx context.Context,
-) (map[string][]int, error) {
-	var gpms []groupProjectMapping
-	err := c.db.SelectContext(ctx, &gpms,
-		`SELECT group_id, project_id `+
-			`FROM kc_group_projects`)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNoResult
-		}
-		return nil, err
-	}
-	groupIDProjectIDsMap := map[string][]int{}
-	// no need to check for duplicates here since the table has:
-	// UNIQUE KEY `group_project` (`group_id`,`project_id`)
-	for _, gpm := range gpms {
-		groupIDProjectIDsMap[gpm.GroupID] =
-			append(groupIDProjectIDsMap[gpm.GroupID], gpm.ProjectID)
-	}
-	return groupIDProjectIDsMap, nil
-}
-
 // SSHKeyUsed sets the last_used attribute of the ssh key identified by the
 // given fingerprint to used.
 //
@@ -182,6 +150,7 @@ func (c *Client) SSHKeyUsed(
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "SSHKeyUsed")
 	defer span.End()
+	// run query
 	_, err := c.db.ExecContext(ctx,
 		`UPDATE ssh_key `+
 			`SET last_used = ? `+
@@ -193,4 +162,29 @@ func (c *Client) SSHKeyUsed(
 			fingerprint, err)
 	}
 	return nil
+}
+
+// ProjectGroupIDs returns a slice of Group (UU)IDs of which the project
+// identified by the given projectID is a member.
+func (c *Client) ProjectGroupIDs(
+	ctx context.Context,
+	projectID int,
+) ([]uuid.UUID, error) {
+	// set up tracing
+	ctx, span := otel.Tracer(pkgName).Start(ctx, "ProjectGroupIDs")
+	defer span.End()
+	// run query
+	var gids []uuid.UUID
+	err := c.db.SelectContext(ctx, &gids,
+		`SELECT group_id `+
+			`FROM kc_group_projects `+
+			`WHERE project_id = ?`,
+		projectID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoResult
+		}
+		return nil, err
+	}
+	return gids, nil
 }
