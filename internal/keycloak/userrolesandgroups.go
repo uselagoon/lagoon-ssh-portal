@@ -12,9 +12,11 @@ import (
 )
 
 // UserRolesAndGroups queries Keycloak given the user UUID, and returns the
-// user's realm roles, and group memberships (by name, including subgroups).
-func (c *Client) UserRolesAndGroups(ctx context.Context,
-	userUUID *uuid.UUID) ([]string, []string, error) {
+// user's realm roles, and group memberships (by path).
+func (c *Client) UserRolesAndGroups(
+	ctx context.Context,
+	userUUID uuid.UUID,
+) ([]string, []string, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserRolesAndGroups")
 	defer span.End()

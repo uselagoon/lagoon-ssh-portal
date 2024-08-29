@@ -12,8 +12,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func (c *Client) getUserToken(ctx context.Context,
-	userUUID *uuid.UUID) (*oauth2.Token, error) {
+func (c *Client) getUserToken(
+	ctx context.Context,
+	userUUID uuid.UUID,
+) (*oauth2.Token, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "getUserToken")
 	defer span.End()
@@ -49,8 +51,10 @@ func (c *Client) getUserToken(ctx context.Context,
 // access token response containing both access_token and refresh_token.
 // Authorized party for these tokens is auth-server. Authorization is done by
 // the Lagoon API.
-func (c *Client) UserAccessTokenResponse(ctx context.Context,
-	userUUID *uuid.UUID) (string, error) {
+func (c *Client) UserAccessTokenResponse(
+	ctx context.Context,
+	userUUID uuid.UUID,
+) (string, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserAccessToken")
 	defer span.End()
@@ -73,8 +77,10 @@ func (c *Client) UserAccessTokenResponse(ctx context.Context,
 // UserAccessToken queries Keycloak given the user UUID, and returns an access
 // token. Authorized party for this token is auth-server. Authorization is done
 // by the Lagoon API.
-func (c *Client) UserAccessToken(ctx context.Context,
-	userUUID *uuid.UUID) (string, error) {
+func (c *Client) UserAccessToken(
+	ctx context.Context,
+	userUUID uuid.UUID,
+) (string, error) {
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserAccessToken")
 	defer span.End()
