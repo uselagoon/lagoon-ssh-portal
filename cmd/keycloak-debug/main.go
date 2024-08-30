@@ -11,7 +11,7 @@ import (
 // CLI represents the command-line interface.
 type CLI struct {
 	Debug      bool          `kong:"env='DEBUG',help='Enable debug logging'"`
-	DumpGroups DumpGroupsCmd `kong:"cmd,default=1,help='(default) Serve ssh-portal-api requests'"`
+	DumpGroups DumpGroupsCmd `kong:"cmd,default=1,help='(default) Dump top-level Keycloak groups to stdout'"`
 }
 
 func main() {

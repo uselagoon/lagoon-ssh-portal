@@ -11,7 +11,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.7
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/google/uuid v1.6.0
+	github.com/google/uuid v1.6.1-0.20240806143717-0e97ed3b5379
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/moby/spdystream v0.5.0
 	github.com/nats-io/nats.go v1.37.0
