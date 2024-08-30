@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _UserRoleName = "guestreporterdevelopermaintainerowner"
+const _UserRoleName = "invaliduserroleguestreporterdevelopermaintainerowner"
 
-var _UserRoleIndex = [...]uint8{0, 5, 13, 22, 32, 37}
+var _UserRoleIndex = [...]uint8{0, 15, 20, 28, 37, 47, 52}
 
-const _UserRoleLowerName = "guestreporterdevelopermaintainerowner"
+const _UserRoleLowerName = "invaliduserroleguestreporterdevelopermaintainerowner"
 
 func (i UserRole) String() string {
 	if i < 0 || i >= UserRole(len(_UserRoleIndex)-1) {
@@ -25,34 +25,38 @@ func (i UserRole) String() string {
 // Re-run the stringer command to generate them again.
 func _UserRoleNoOp() {
 	var x [1]struct{}
-	_ = x[Guest-(0)]
-	_ = x[Reporter-(1)]
-	_ = x[Developer-(2)]
-	_ = x[Maintainer-(3)]
-	_ = x[Owner-(4)]
+	_ = x[InvalidUserRole-(0)]
+	_ = x[Guest-(1)]
+	_ = x[Reporter-(2)]
+	_ = x[Developer-(3)]
+	_ = x[Maintainer-(4)]
+	_ = x[Owner-(5)]
 }
 
-var _UserRoleValues = []UserRole{Guest, Reporter, Developer, Maintainer, Owner}
+var _UserRoleValues = []UserRole{InvalidUserRole, Guest, Reporter, Developer, Maintainer, Owner}
 
 var _UserRoleNameToValueMap = map[string]UserRole{
-	_UserRoleName[0:5]:        Guest,
-	_UserRoleLowerName[0:5]:   Guest,
-	_UserRoleName[5:13]:       Reporter,
-	_UserRoleLowerName[5:13]:  Reporter,
-	_UserRoleName[13:22]:      Developer,
-	_UserRoleLowerName[13:22]: Developer,
-	_UserRoleName[22:32]:      Maintainer,
-	_UserRoleLowerName[22:32]: Maintainer,
-	_UserRoleName[32:37]:      Owner,
-	_UserRoleLowerName[32:37]: Owner,
+	_UserRoleName[0:15]:       InvalidUserRole,
+	_UserRoleLowerName[0:15]:  InvalidUserRole,
+	_UserRoleName[15:20]:      Guest,
+	_UserRoleLowerName[15:20]: Guest,
+	_UserRoleName[20:28]:      Reporter,
+	_UserRoleLowerName[20:28]: Reporter,
+	_UserRoleName[28:37]:      Developer,
+	_UserRoleLowerName[28:37]: Developer,
+	_UserRoleName[37:47]:      Maintainer,
+	_UserRoleLowerName[37:47]: Maintainer,
+	_UserRoleName[47:52]:      Owner,
+	_UserRoleLowerName[47:52]: Owner,
 }
 
 var _UserRoleNames = []string{
-	_UserRoleName[0:5],
-	_UserRoleName[5:13],
-	_UserRoleName[13:22],
-	_UserRoleName[22:32],
-	_UserRoleName[32:37],
+	_UserRoleName[0:15],
+	_UserRoleName[15:20],
+	_UserRoleName[20:28],
+	_UserRoleName[28:37],
+	_UserRoleName[37:47],
+	_UserRoleName[47:52],
 }
 
 // UserRoleString retrieves an enum value from the enum constants string name.

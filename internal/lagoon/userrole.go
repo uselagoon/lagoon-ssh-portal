@@ -6,8 +6,10 @@ package lagoon
 type UserRole int
 
 const (
+	// InvalidUserRole is an invalid zero value
+	InvalidUserRole UserRole = iota
 	// Guest user role.
-	Guest UserRole = iota
+	Guest
 	// Reporter user role.
 	Reporter
 	// Developer user role.
