@@ -2,6 +2,7 @@ package sshportalapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"time"
@@ -23,20 +24,30 @@ var (
 	})
 )
 
+var (
+	falseResponse = []byte(`false`)
+	trueResponse  = []byte(`true`)
+)
+
 func sshportal(
 	ctx context.Context,
 	log *slog.Logger,
-	c *nats.EncodedConn,
+	c *nats.Conn,
 	p *rbac.Permission,
 	l LagoonDBService,
 	k KeycloakService,
-) nats.Handler {
-	return func(_, replySubject string, query *bus.SSHAccessQuery) {
+) nats.MsgHandler {
+	return func(msg *nats.Msg) {
 		var realmRoles, userGroups []string
 		// set up tracing and update metrics
 		ctx, span := otel.Tracer(pkgName).Start(ctx, bus.SubjectSSHAccessQuery)
 		defer span.End()
 		requestsCounter.Inc()
+		var query bus.SSHAccessQuery
+		if err := json.Unmarshal(msg.Data, &query); err != nil {
+			log.Warn("couldn't unmarshal query", slog.Any("query", msg.Data))
+			return
+		}
 		log := log.With(slog.Any("query", query))
 		// sanity check the query
 		if query.SSHFingerprint == "" || query.NamespaceName == "" {
@@ -48,7 +59,7 @@ func sshportal(
 		if err != nil {
 			if errors.Is(err, lagoondb.ErrNoResult) {
 				log.Warn("unknown namespace name", slog.Any("error", err))
-				if err = c.Publish(replySubject, false); err != nil {
+				if err = c.Publish(msg.Reply, falseResponse); err != nil {
 					log.Error("couldn't publish reply", slog.Any("error", err))
 				}
 				return
@@ -65,7 +76,7 @@ func sshportal(
 			log.Warn("ID mismatch in environment identification",
 				slog.Any("env", env),
 				slog.Any("error", err))
-			if err = c.Publish(replySubject, false); err != nil {
+			if err = c.Publish(msg.Reply, falseResponse); err != nil {
 				log.Error("couldn't publish reply", slog.Any("error", err))
 			}
 			return
@@ -75,7 +86,7 @@ func sshportal(
 		if err != nil {
 			if errors.Is(err, lagoondb.ErrNoResult) {
 				log.Debug("unknown SSH Fingerprint", slog.Any("error", err))
-				if err = c.Publish(replySubject, false); err != nil {
+				if err = c.Publish(msg.Reply, falseResponse); err != nil {
 					log.Error("couldn't publish reply", slog.Any("error", err))
 				}
 				return
@@ -115,10 +126,13 @@ func sshportal(
 		ok := p.UserCanSSHToEnvironment(
 			ctx, env, realmRoles, userGroups, groupNameProjectIDsMap)
 		var logMsg string
+		var response []byte
 		if ok {
 			logMsg = "SSH access authorized"
+			response = trueResponse
 		} else {
 			logMsg = "SSH access not authorized"
+			response = falseResponse
 		}
 		log.Info(logMsg,
 			slog.Int("environmentID", env.ID),
@@ -127,7 +141,7 @@ func sshportal(
 			slog.String("projectName", env.ProjectName),
 			slog.String("userUUID", user.UUID.String()),
 		)
-		if err = c.Publish(replySubject, ok); err != nil {
+		if err = c.Publish(msg.Reply, response); err != nil {
 			log.Error("couldn't publish reply",
 				slog.String("userUUID", user.UUID.String()),
 				slog.Any("error", err))

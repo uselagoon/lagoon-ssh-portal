@@ -1,6 +1,7 @@
 package sshserver
 
 import (
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -40,8 +41,11 @@ var (
 
 // pubKeyAuth returns a ssh.PublicKeyHandler which queries the remote
 // ssh-portal-api for Lagoon SSH authorization.
-func pubKeyAuth(log *slog.Logger, nc *nats.EncodedConn,
-	c *k8s.Client) ssh.PublicKeyHandler {
+func pubKeyAuth(
+	log *slog.Logger,
+	nc *nats.Conn,
+	c *k8s.Client,
+) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		authAttemptsTotal.Inc()
 		log := log.With(slog.String("sessionID", ctx.SessionID()))
@@ -60,21 +64,29 @@ func pubKeyAuth(log *slog.Logger, nc *nats.EncodedConn,
 		}
 		// construct ssh access query
 		fingerprint := gossh.FingerprintSHA256(pubKey)
-		q := bus.SSHAccessQuery{
+		queryData, err := json.Marshal(bus.SSHAccessQuery{
 			SSHFingerprint: fingerprint,
 			NamespaceName:  ctx.User(),
 			ProjectID:      pid,
 			EnvironmentID:  eid,
 			SessionID:      ctx.SessionID(),
+		})
+		if err != nil {
+			log.Warn("couldn't marshal NATS request", slog.Any("error", err))
+			return false
 		}
 		// send query
-		var ok bool
-		err = nc.Request(bus.SubjectSSHAccessQuery, q, &ok, natsTimeout)
+		msg, err := nc.Request(bus.SubjectSSHAccessQuery, queryData, natsTimeout)
 		if err != nil {
 			log.Warn("couldn't make NATS request", slog.Any("error", err))
 			return false
 		}
 		// handle response
+		var ok bool
+		if err := json.Unmarshal(msg.Data, &ok); err != nil {
+			log.Warn("couldn't unmarshal response", slog.Any("response", msg.Data))
+			return false
+		}
 		if !ok {
 			log.Debug("SSH access not authorized",
 				slog.String("fingerprint", fingerprint),

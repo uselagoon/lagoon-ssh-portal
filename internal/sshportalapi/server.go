@@ -50,7 +50,7 @@ func ServeNATS(
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	// connect to NATS server
-	nconn, err := nats.Connect(natsURL,
+	nc, err := nats.Connect(natsURL,
 		nats.Name("ssh-portal-api"),
 		// synchronise exiting ServeNATS()
 		nats.ClosedHandler(func(_ *nats.Conn) {
@@ -67,14 +67,13 @@ func ServeNATS(
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
 	}
-	nc, err := nats.NewEncodedConn(nconn, "json")
-	if err != nil {
-		return fmt.Errorf("couldn't get encoded conn: %v", err)
-	}
 	defer nc.Close()
-	// set up request/response callback for sshportal
-	_, err = nc.QueueSubscribe(bus.SubjectSSHAccessQuery, queue,
-		sshportal(ctx, log, nc, p, l, k))
+	// configure callback
+	_, err = nc.QueueSubscribe(
+		bus.SubjectSSHAccessQuery,
+		queue,
+		sshportal(ctx, log, nc, p, l, k),
+	)
 	if err != nil {
 		return fmt.Errorf("couldn't subscribe to queue: %v", err)
 	}

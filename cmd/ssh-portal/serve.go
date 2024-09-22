@@ -36,7 +36,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
 	// get nats server connection
-	nconn, err := nats.Connect(cmd.NATSServer,
+	nc, err := nats.Connect(cmd.NATSServer,
 		nats.Name("ssh-portal"),
 		// exit on connection close
 		nats.ClosedHandler(func(_ *nats.Conn) {
@@ -51,10 +51,6 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 		}))
 	if err != nil {
 		return fmt.Errorf("couldn't connect to NATS server: %v", err)
-	}
-	nc, err := nats.NewEncodedConn(nconn, "json")
-	if err != nil {
-		return fmt.Errorf("couldn't get encoded conn: %v", err)
 	}
 	defer nc.Close()
 	// start listening on TCP port
@@ -83,7 +79,15 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	eg.Go(func() error {
 		// start serving SSH connection requests
 		return sshserver.Serve(
-			ctx, log, nc, l, c, hostkeys, cmd.LogAccessEnabled, cmd.Banner)
+			ctx,
+			log,
+			nc,
+			l,
+			c,
+			hostkeys,
+			cmd.LogAccessEnabled,
+			cmd.Banner,
+		)
 	})
 	return eg.Wait()
 }
