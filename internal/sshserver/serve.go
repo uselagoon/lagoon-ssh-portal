@@ -40,7 +40,7 @@ func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 func Serve(
 	ctx context.Context,
 	log *slog.Logger,
-	nc *nats.EncodedConn,
+	nc *nats.Conn,
 	l net.Listener,
 	c *k8s.Client,
 	hostKeys [][]byte,
