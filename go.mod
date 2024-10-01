@@ -6,7 +6,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MicahParks/keyfunc/v2 v2.1.0
 	github.com/alecthomas/assert/v2 v2.11.0
-	github.com/alecthomas/kong v0.9.0
+	github.com/alecthomas/kong v1.2.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/gliderlabs/ssh v0.3.7
 	github.com/go-sql-driver/mysql v1.8.1
