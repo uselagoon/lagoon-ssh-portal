@@ -22,7 +22,7 @@ var timeoutSeconds = int64(timeout / time.Second)
 // Client is a k8s client.
 type Client struct {
 	config       *rest.Config
-	clientset    *kubernetes.Clientset
+	clientset    kubernetes.Interface
 	logStreamIDs sync.Map
 }
 
