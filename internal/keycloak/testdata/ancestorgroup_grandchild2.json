@@ -1,0 +1,18 @@
+{
+  "access": {
+    "manage": true,
+    "manageMembers": true,
+    "manageMembership": true,
+    "view": true,
+    "viewMembers": true
+  },
+  "attributes": {},
+  "clientRoles": {},
+  "id": "c7d3b738-91f2-4cf1-aeec-2ab444eb3215",
+  "name": "scott-test-grandchild-group2b",
+  "parentId": "2e833d9b-39b7-4f25-b37f-cfb8765015ab",
+  "path": "/scott-test-ancestor-group2/scott-test-child-group2/scott-test-grandchild-group2b",
+  "realmRoles": [],
+  "subGroupCount": 0,
+  "subGroups": []
+}
