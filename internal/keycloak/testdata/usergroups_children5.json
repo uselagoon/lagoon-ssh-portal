@@ -1,0 +1,74 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "0c104b4a-7573-4bb8-993c-7b8c816e40f4",
+    "name": "corp6-senior-devs-developer",
+    "parentId": "eca344cd-2b81-4447-bcf9-ce07aa9d4a1b",
+    "path": "/corp6-senior-devs/corp6-senior-devs-developer",
+    "realmRoles": [
+      "developer"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "68cd6ee1-96a0-4f33-9bb9-7583b154134b",
+    "name": "corp6-senior-devs-maintainer",
+    "parentId": "eca344cd-2b81-4447-bcf9-ce07aa9d4a1b",
+    "path": "/corp6-senior-devs/corp6-senior-devs-maintainer",
+    "realmRoles": [
+      "maintainer"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "8bd42c93-3e25-4453-b4f8-c040486a009e",
+    "name": "corp6-senior-devs-owner",
+    "parentId": "eca344cd-2b81-4447-bcf9-ce07aa9d4a1b",
+    "path": "/corp6-senior-devs/corp6-senior-devs-owner",
+    "realmRoles": [
+      "owner"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  }
+]

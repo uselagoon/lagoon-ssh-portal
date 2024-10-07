@@ -24,3 +24,9 @@ func (l *LagoonClaims) SetClientID(clientID string) {
 func (c *Client) UseDefaultHTTPClient() {
 	c.httpClient = http.DefaultClient
 }
+
+// UsePageSize sets the page size used by the client when retrieving groups
+// from Keycloak.
+func (c *Client) UsePageSize(pageSize int) {
+	c.pageSize = pageSize
+}

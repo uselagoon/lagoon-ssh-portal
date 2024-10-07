@@ -1,0 +1,72 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "fe0fd424-a0fe-4796-9d4b-0c4b5a0b0f08",
+    "name": "corp4-bigbus-contractors",
+    "path": "/corp4-bigbus-contractors",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "754963d5-5154-410d-a0f4-ed5c029620a1",
+    "name": "corp5-bigbus-contractors",
+    "path": "/corp5-bigbus-contractors",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "7ffd7b50-fb33-487e-8331-d60925213f3d",
+    "name": "corp6-bigbus-contracts",
+    "path": "/corp6-bigbus-contracts",
+    "subGroupCount": 1,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "2b876213-78d8-4aff-8a92-ef3dacc8fc32",
+    "name": "corp6-devs-birds",
+    "path": "/corp6-devs-birds",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "042a0523-5175-4b38-9fc9-55950afe5787",
+    "name": "corp6-devs-fish",
+    "path": "/corp6-devs-fish",
+    "subGroupCount": 1,
+    "subGroups": []
+  }
+]

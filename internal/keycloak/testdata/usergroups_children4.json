@@ -1,0 +1,50 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "d56c752d-e6d5-47c1-980d-2722b5a7c589",
+    "name": "project-a-fishy-website-maintainer",
+    "parentId": "54486df8-450d-4b62-8e10-223ac3419d05",
+    "path": "/project-a-fishy-website/project-a-fishy-website-maintainer",
+    "realmRoles": [
+      "maintainer"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "59eaaf1f-f88c-4447-aea1-2b06fec92cb0",
+    "name": "project-a-fishy-website-owner",
+    "parentId": "54486df8-450d-4b62-8e10-223ac3419d05",
+    "path": "/project-a-fishy-website/project-a-fishy-website-owner",
+    "realmRoles": [
+      "owner"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  }
+]

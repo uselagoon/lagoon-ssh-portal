@@ -1,0 +1,72 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "3c1f5f78-3dba-44b9-94d1-27a0ca504238",
+    "name": "a",
+    "path": "/a",
+    "subGroupCount": 1,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "945d6316-aa1c-4d2f-94b9-eccb6ef3aa26",
+    "name": "awebsite-for-cats-devteam",
+    "path": "/awebsite-for-cats-devteam",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "f4d765e6-4d8e-4834-b8fc-9f89a19abcbf",
+    "name": "bigbus-contractors",
+    "path": "/bigbus-contractors",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "c46856da-bd2b-49f6-a943-d4d7a61f8cfb",
+    "name": "corp2-bigbus-contractors",
+    "path": "/corp2-bigbus-contractors",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "9ea08d19-0565-403b-9cde-8a3ed590dda7",
+    "name": "corp3-bigbus-contractors",
+    "path": "/corp3-bigbus-contractors",
+    "subGroupCount": 2,
+    "subGroups": []
+  }
+]
