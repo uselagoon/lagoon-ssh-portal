@@ -28,6 +28,14 @@ var (
 		Name: "sshportal_sessions_total",
 		Help: "The total number of ssh-portal sessions started",
 	})
+	execSessions = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "sshportal_exec_sessions",
+		Help: "Current number of ssh-portal exec sessions",
+	})
+	logsSessions = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "sshportal_logs_sessions",
+		Help: "Current number of ssh-portal logs sessions",
+	})
 )
 
 // authCtxValues extracts the context values set by the authhandler.
@@ -246,6 +254,9 @@ func startClientKeepalive(ctx context.Context, cancel context.CancelFunc,
 
 func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
 	container string, follow bool, tailLines int64, c K8SAPIService) {
+	// update metrics
+	logsSessions.Inc()
+	defer logsSessions.Dec()
 	// Wrap the ssh.Context so we can cancel goroutines started from this
 	// function without affecting the SSH session.
 	childCtx, cancel := context.WithCancel(ctx)
@@ -280,6 +291,9 @@ func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
 func doExec(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
 	container string, cmd []string, c K8SAPIService, pty bool,
 	winch <-chan ssh.Window) {
+	// update metrics
+	execSessions.Inc()
+	defer execSessions.Dec()
 	err := c.Exec(ctx, s.User(), deployment, container, cmd, s,
 		s.Stderr(), pty, winch)
 	if err != nil {
