@@ -230,8 +230,7 @@ func (c *Client) Logs(
 	}
 	defer c.logSem.Release(1)
 	// Wrap the context so we can cancel subroutines of this function on error.
-	childCtx, cancel :=
-		context.WithTimeoutCause(ctx, c.logTimeLimit, ErrLogTimeLimit)
+	childCtx, cancel := context.WithTimeout(ctx, c.logTimeLimit)
 	defer cancel()
 	// Generate a requestID value to uniquely distinguish between multiple calls
 	// to this function. This requestID is used in readLogs() to distinguish
@@ -278,7 +277,7 @@ func (c *Client) Logs(
 				return fmt.Errorf("couldn't construct new pod informer: %v", err)
 			}
 			podInformer.Run(childCtx.Done())
-			if errors.Is(childCtx.Err(), ErrLogTimeLimit) {
+			if errors.Is(childCtx.Err(), context.DeadlineExceeded) {
 				return ErrLogTimeLimit
 			}
 			return nil
