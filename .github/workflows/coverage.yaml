@@ -16,9 +16,7 @@ jobs:
         go-version: stable
     - name: Calculate coverage
       run: |
-        go test -v -covermode=atomic -coverprofile=cover.out.raw -coverpkg=./... ./...
-        # remove generated code from coverage calculation
-        grep -Ev 'internal/mock|_enumer.go' cover.out.raw > cover.out
+        go test -v -covermode=atomic -coverprofile=cover.out -coverpkg=./... ./...
     - name: Generage coverage badge
       uses: vladopajic/go-test-coverage@c7fe52e0f48e0fbed8c1812824c5346218443c70 # v2.10.2
       with:
