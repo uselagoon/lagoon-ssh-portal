@@ -26,10 +26,11 @@ type Client struct {
 	clientset    kubernetes.Interface
 	logStreamIDs sync.Map
 	logSem       *semaphore.Weighted
+	logTimeLimit time.Duration
 }
 
 // NewClient creates a new kubernetes API client.
-func NewClient(concurrentLogLimit uint) (*Client, error) {
+func NewClient(concurrentLogLimit uint, logTimeLimit time.Duration) (*Client, error) {
 	// create the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -41,8 +42,9 @@ func NewClient(concurrentLogLimit uint) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		config:    config,
-		clientset: clientset,
-		logSem:    semaphore.NewWeighted(int64(concurrentLogLimit)),
+		config:       config,
+		clientset:    clientset,
+		logSem:       semaphore.NewWeighted(int64(concurrentLogLimit)),
+		logTimeLimit: logTimeLimit,
 	}, nil
 }
