@@ -21,13 +21,14 @@ const (
 
 // ServeCmd represents the serve command.
 type ServeCmd struct {
-	NATSServer       string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
-	SSHServerPort    uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
-	HostKeyECDSA     string `kong:"env='HOST_KEY_ECDSA',help='PEM encoded ECDSA host key'"`
-	HostKeyED25519   string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
-	HostKeyRSA       string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
-	LogAccessEnabled bool   `kong:"env='LOG_ACCESS_ENABLED',help='Allow any user who can SSH into a pod to also access its logs'"`
-	Banner           string `kong:"env='BANNER',help='Text sent to remote users before authentication'"`
+	NATSServer         string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
+	SSHServerPort      uint   `kong:"default='2222',env='SSH_SERVER_PORT',help='Port the SSH server will listen on for SSH client connections'"`
+	HostKeyECDSA       string `kong:"env='HOST_KEY_ECDSA',help='PEM encoded ECDSA host key'"`
+	HostKeyED25519     string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
+	HostKeyRSA         string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
+	LogAccessEnabled   bool   `kong:"env='LOG_ACCESS_ENABLED',help='Allow any user who can SSH into a pod to also access its logs'"`
+	Banner             string `kong:"env='BANNER',help='Text sent to remote users before authentication'"`
+	ConcurrentLogLimit uint   `kong:"default='32',env='CONCURRENT_LOG_LIMIT',help='Maximum number of concurrent log sessions'"`
 }
 
 // Run the serve command to handle SSH connection requests.
@@ -60,7 +61,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	}
 	defer l.Close()
 	// get kubernetes client
-	c, err := k8s.NewClient()
+	c, err := k8s.NewClient(cmd.ConcurrentLogLimit)
 	if err != nil {
 		return fmt.Errorf("couldn't create k8s client: %v", err)
 	}
