@@ -1,6 +1,6 @@
 package lagoon
 
-//go:generate enumer -type=UserRole -sql -transform=lower
+//go:generate enumer -type=UserRole -transform=lower
 
 // UserRole is an enum of valid User roles.
 type UserRole int
