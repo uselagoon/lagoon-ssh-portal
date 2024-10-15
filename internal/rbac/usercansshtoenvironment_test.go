@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
-	"github.com/uselagoon/ssh-portal/internal/rbac/mock"
 	"go.uber.org/mock/gomock"
 )
 
@@ -336,12 +335,12 @@ func TestUserCanSSHDefaultRBAC(t *testing.T) {
 			// set up mocks
 			ctrl := gomock.NewController(tt)
 			defer ctrl.Finish()
-			kcService := mock.NewMockKeycloakService(ctrl)
+			kcService := NewMockKeycloakService(ctrl)
 			kcService.EXPECT().
 				UserRolesAndGroups(ctx, tc.userUUID).
 				Return(tc.realmRoles, tc.userGroupPaths, nil).
 				Times(2)
-			ldbService := mock.NewMockLagoonDBService(ctrl)
+			ldbService := NewMockLagoonDBService(ctrl)
 			if !tc.realmRoleShortCircuit {
 				kcService.EXPECT().
 					UserGroupIDRole(ctx, tc.userGroupPaths).

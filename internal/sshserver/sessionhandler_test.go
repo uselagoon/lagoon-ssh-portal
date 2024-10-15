@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/uselagoon/ssh-portal/internal/mock"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
 	"go.uber.org/mock/gomock"
 )
@@ -45,9 +44,9 @@ func TestExec(t *testing.T) {
 		t.Run(name, func(tt *testing.T) {
 			// set up mocks
 			ctrl := gomock.NewController(tt)
-			k8sService := mock.NewMockK8SAPIService(ctrl)
-			sshSession := mock.NewMockSession(ctrl)
-			sshContext := mock.NewMockContext(ctrl)
+			k8sService := NewMockK8SAPIService(ctrl)
+			sshSession := NewMockSession(ctrl)
+			sshContext := NewMockContext(ctrl)
 			// configure callback
 			callback := sshserver.SessionHandler(
 				log,
@@ -120,9 +119,9 @@ func TestLogs(t *testing.T) {
 		t.Run(name, func(tt *testing.T) {
 			// set up mocks
 			ctrl := gomock.NewController(tt)
-			k8sService := mock.NewMockK8SAPIService(ctrl)
-			sshSession := mock.NewMockSession(ctrl)
-			sshContext := mock.NewMockContext(ctrl)
+			k8sService := NewMockK8SAPIService(ctrl)
+			sshSession := NewMockSession(ctrl)
+			sshContext := NewMockContext(ctrl)
 			// configure callback
 			callback := sshserver.SessionHandler(
 				log,
