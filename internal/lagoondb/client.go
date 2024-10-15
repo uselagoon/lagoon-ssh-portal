@@ -107,6 +107,10 @@ func (c *Client) UserBySSHFingerprint(
 		}
 		return nil, err
 	}
+	// usid column in set NOT NULL, so this should be impossible
+	if user.UUID == nil {
+		return nil, errors.New("NULL user UUID")
+	}
 	return &user, nil
 }
 
