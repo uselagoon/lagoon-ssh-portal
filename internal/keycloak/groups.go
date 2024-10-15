@@ -7,28 +7,27 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"strconv"
 
-	"golang.org/x/oauth2/clientcredentials"
+	"github.com/google/uuid"
 )
+
+// defaultPageSize is the default size of the page requested when scrolling
+// through group results from Keycloak.
+const defaultPageSize = 1000
 
 // Group represents a Keycloak Group. It holds the fields required when getting
 // a list of groups from keycloak.
 type Group struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         *uuid.UUID          `json:"id"`
+	ParentID   *uuid.UUID          `json:"parentId"`
+	Name       string              `json:"name"`
+	Attributes map[string][]string `json:"attributes"`
+	RealmRoles []string            `json:"realmRoles"`
 }
 
-func (c *Client) httpClient(ctx context.Context) *http.Client {
-	cc := clientcredentials.Config{
-		ClientID:     c.clientID,
-		ClientSecret: c.clientSecret,
-		TokenURL:     c.oidcConfig.TokenEndpoint,
-	}
-	return cc.Client(ctx)
-}
-
-// rawGroups returns the raw JSON group representation from the Keycloak API.
-func (c *Client) rawGroups(ctx context.Context) ([]byte, error) {
+// rawGroups returns the raw JSON group representation of all top-level groups.
+func (c *Client) rawGroups(ctx context.Context, first int) ([]byte, error) {
 	groupsURL := *c.baseURL
 	groupsURL.Path = path.Join(c.baseURL.Path,
 		"/auth/admin/realms/lagoon/groups")
@@ -38,8 +37,10 @@ func (c *Client) rawGroups(ctx context.Context) ([]byte, error) {
 	}
 	q := req.URL.Query()
 	q.Add("briefRepresentation", "true")
+	q.Add("first", strconv.Itoa(first))
+	q.Add("max", strconv.Itoa(c.pageSize))
 	req.URL.RawQuery = q.Encode()
-	res, err := c.httpClient(ctx).Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get groups: %v", err)
 	}
@@ -51,31 +52,43 @@ func (c *Client) rawGroups(ctx context.Context) ([]byte, error) {
 	return io.ReadAll(res.Body)
 }
 
-// GroupNameGroupIDMap returns a map of Keycloak Group names to Group IDs.
-func (c *Client) GroupNameGroupIDMap(
+// TopLevelGroupNameGroupIDMap returns a map of top-level Keycloak Group names
+// to Group IDs.
+func (c *Client) TopLevelGroupNameGroupIDMap(
 	ctx context.Context,
-) (map[string]string, error) {
+) (map[string]uuid.UUID, error) {
 	// prefer to use cached value
-	if groupNameGroupIDMap, ok := c.groupCache.Get(); ok {
+	if groupNameGroupIDMap, ok := c.topLevelGroupNameIDCache.Get(); ok {
 		return groupNameGroupIDMap, nil
 	}
 	// otherwise get data from keycloak
-	if err := c.limiter.Wait(ctx); err != nil {
-		return nil, fmt.Errorf("couldn't wait for limiter: %v", err)
-	}
-	data, err := c.rawGroups(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get groups from Keycloak API: %v", err)
-	}
 	var groups []Group
-	if err := json.Unmarshal(data, &groups); err != nil {
-		return nil, fmt.Errorf("couldn't unmarshal Keycloak groups: %v", err)
+	var first int
+	for {
+		var page []Group
+		if err := c.limiter.Wait(ctx); err != nil {
+			return nil, fmt.Errorf("couldn't wait for limiter: %v", err)
+		}
+		data, err := c.rawGroups(ctx, first)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get groups from Keycloak API: %v", err)
+		}
+		if err := json.Unmarshal(data, &page); err != nil {
+			return nil, fmt.Errorf("couldn't unmarshal Keycloak groups: %v", err)
+		}
+		groups = append(groups, page...)
+		if len(page) < c.pageSize {
+			break // reached last page
+		}
+		first += c.pageSize // scroll to next page
 	}
-	groupNameGroupIDMap := map[string]string{}
+	groupNameGroupIDMap := map[string]uuid.UUID{}
 	for _, group := range groups {
-		groupNameGroupIDMap[group.Name] = group.ID
+		groupNameGroupIDMap[group.Name] = *group.ID
+		// update group ID cache
+		c.groupIDGroupCache.Set(*group.ID, group)
 	}
-	// update cache
-	c.groupCache.Set(groupNameGroupIDMap)
+	// update top level group name cache
+	c.topLevelGroupNameIDCache.Set(groupNameGroupIDMap)
 	return groupNameGroupIDMap, nil
 }

@@ -19,7 +19,7 @@ func TestIntCache(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			c := cache.NewCache[int](cache.WithTTL[int](time.Second))
+			c := cache.NewAny[int](cache.AnyWithTTL[int](time.Second))
 			c.Set(tc.input)
 			if tc.expired {
 				time.Sleep(2 * time.Second)
@@ -36,33 +36,35 @@ func TestIntCache(t *testing.T) {
 
 func TestMapCache(t *testing.T) {
 	var testCases = map[string]struct {
-		input   map[string]string
-		expect  map[string]string
+		key     string
+		value   string
 		expired bool
 	}{
 		"expired": {
-			input:   map[string]string{"foo": "bar"},
+			key:     "foo",
+			value:   "bar",
 			expired: true,
 		},
 		"not expired": {
-			input:  map[string]string{"foo": "bar"},
-			expect: map[string]string{"foo": "bar"},
+			key:   "foo",
+			value: "bar",
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			c := cache.NewCache[map[string]string](
-				cache.WithTTL[map[string]string](time.Second),
+			c := cache.NewMap[string, string](
+				cache.MapWithTTL[string, string](time.Second),
 			)
-			c.Set(tc.input)
+			c.Set(tc.key, tc.value)
 			if tc.expired {
 				time.Sleep(2 * time.Second)
-				_, ok := c.Get()
+				value, ok := c.Get(tc.key)
 				assert.False(tt, ok, name)
+				assert.Equal(tt, "", value, name)
 			} else {
-				value, ok := c.Get()
+				value, ok := c.Get(tc.key)
 				assert.True(tt, ok, name)
-				assert.Equal(tt, tc.expect, value, name)
+				assert.Equal(tt, tc.value, value, name)
 			}
 		})
 	}

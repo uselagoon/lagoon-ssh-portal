@@ -1,6 +1,8 @@
 package keycloak
 
 import (
+	"net/http"
+
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
 )
@@ -15,4 +17,16 @@ func (c *Client) ValidateToken(t *oauth2.Token, sub string,
 // SetClientID sets the Client ID for testing.
 func (l *LagoonClaims) SetClientID(clientID string) {
 	l.clientID = clientID
+}
+
+// UseDefaultHTTPClient uses the default http client to avoid token refresh in
+// tests.
+func (c *Client) UseDefaultHTTPClient() {
+	c.httpClient = http.DefaultClient
+}
+
+// UsePageSize sets the page size used by the client when retrieving groups
+// from Keycloak.
+func (c *Client) UsePageSize(pageSize int) {
+	c.pageSize = pageSize
 }

@@ -1,0 +1,50 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "60df5791-3676-42a4-9564-9dd7b09276b2",
+    "name": "project-a-website-for-cats-maintainer",
+    "parentId": "52c2e558-d939-4d76-b241-910386d59aa7",
+    "path": "/project-a-website-for-cats/project-a-website-for-cats-maintainer",
+    "realmRoles": [
+      "maintainer"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "5b5b78e1-43dd-4062-969a-159b60a0f063",
+    "name": "project-a-website-for-cats-owner",
+    "parentId": "52c2e558-d939-4d76-b241-910386d59aa7",
+    "path": "/project-a-website-for-cats/project-a-website-for-cats-owner",
+    "realmRoles": [
+      "owner"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  }
+]

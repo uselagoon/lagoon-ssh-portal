@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
 )
@@ -18,15 +17,8 @@ import (
 // KeycloakTokenService provides methods for querying the Keycloak API for user
 // access tokens.
 type KeycloakTokenService interface {
-	UserAccessTokenResponse(context.Context, *uuid.UUID) (string, error)
-	UserAccessToken(context.Context, *uuid.UUID) (string, error)
-}
-
-// KeycloakUserInfoService provides methods for querying the Keycloak API for
-// permission information contained in service-api user tokens.
-type KeycloakUserInfoService interface {
-	lagoon.KeycloakService
-	UserRolesAndGroups(context.Context, *uuid.UUID) ([]string, []string, error)
+	UserAccessTokenResponse(context.Context, uuid.UUID) (string, error)
+	UserAccessToken(context.Context, uuid.UUID) (string, error)
 }
 
 var (
@@ -46,8 +38,12 @@ var (
 
 // tokenSession returns a bare access token or full access token response based
 // on the user ID
-func tokenSession(s ssh.Session, log *slog.Logger,
-	keycloakToken KeycloakTokenService, uid *uuid.UUID) {
+func tokenSession(
+	s ssh.Session,
+	log *slog.Logger,
+	keycloakToken KeycloakTokenService,
+	userUUID uuid.UUID,
+) {
 	// valid commands:
 	// - grant: returns a full access token response as per
 	//   https://www.rfc-editor.org/rfc/rfc6749#section-4.1.4
@@ -72,7 +68,7 @@ func tokenSession(s ssh.Session, log *slog.Logger,
 	var err error
 	switch cmd[0] {
 	case "grant":
-		response, err = keycloakToken.UserAccessTokenResponse(ctx, uid)
+		response, err = keycloakToken.UserAccessTokenResponse(ctx, userUUID)
 		if err != nil {
 			log.Warn("couldn't get user access token response",
 				slog.Any("error", err))
@@ -85,7 +81,7 @@ func tokenSession(s ssh.Session, log *slog.Logger,
 			return
 		}
 	case "token":
-		response, err = keycloakToken.UserAccessToken(ctx, uid)
+		response, err = keycloakToken.UserAccessToken(ctx, userUUID)
 		if err != nil {
 			log.Warn("couldn't get user access token",
 				slog.Any("error", err))
@@ -129,26 +125,10 @@ func redirectSession(
 	s ssh.Session,
 	log *slog.Logger,
 	p *rbac.Permission,
-	keycloakUserInfo KeycloakUserInfoService,
 	ldb LagoonDBService,
-	uid *uuid.UUID,
+	userUUID uuid.UUID,
 ) {
 	ctx := s.Context()
-	// get the user roles and groups
-	realmRoles, userGroups, err :=
-		keycloakUserInfo.UserRolesAndGroups(s.Context(), uid)
-	if err != nil {
-		log.Error("couldn't query user roles and groups",
-			slog.Any("error", err))
-		_, err = fmt.Fprintf(s.Stderr(),
-			"This SSH server does not provide shell access. SID: %s\r\n",
-			ctx.SessionID())
-		if err != nil {
-			log.Debug("couldn't write error message to session stream",
-				slog.Any("error", err))
-		}
-		return
-	}
 	env, err := ldb.EnvironmentByNamespaceName(s.Context(), s.User())
 	if err != nil {
 		if errors.Is(err, lagoondb.ErrNoResult) {
@@ -173,25 +153,19 @@ func redirectSession(
 		slog.Int("environmentID", env.ID),
 		slog.Int("projectID", env.ProjectID),
 		slog.String("environmentName", env.Name),
+		slog.String("environmentType", env.Type.String()),
 		slog.String("namespaceName", s.User()),
 		slog.String("projectName", env.ProjectName),
+		slog.String("userUUID", userUUID.String()),
 	)
-	groupNameProjectIDsMap, err :=
-		lagoon.GroupNameProjectIDsMap(ctx, ldb, keycloakUserInfo, userGroups)
-	if err != nil {
-		log.Error("couldn't generate group name to project IDs map",
-			slog.Any("error", err))
-		return
-	}
 	// check permission
-	ok := p.UserCanSSHToEnvironment(s.Context(), env, realmRoles,
-		userGroups, groupNameProjectIDsMap)
+	ok, err := p.UserCanSSHToEnvironment(
+		s.Context(), log, userUUID, env.ProjectID, env.Type)
+	if err != nil {
+		log.Error("couldn't check if user can ssh to environment")
+	}
 	if !ok {
 		log.Info("user cannot SSH to environment")
-		log.Debug("user permissions",
-			slog.Any("realmRoles", realmRoles),
-			slog.Any("userGroups", userGroups),
-			slog.Any("groupProjectIDs", groupNameProjectIDsMap))
 		_, err = fmt.Fprintf(s.Stderr(),
 			"This SSH server does not provide shell access. SID: %s\r\n",
 			ctx.SessionID())
@@ -202,10 +176,6 @@ func redirectSession(
 		return
 	}
 	log.Info("user can SSH to environment")
-	log.Debug("user permissions",
-		slog.Any("realmRoles", realmRoles),
-		slog.Any("userGroups", userGroups),
-		slog.Any("groupProjectIDs", groupNameProjectIDsMap))
 	sshHost, sshPort, err := ldb.SSHEndpointByEnvironmentID(s.Context(), env.ID)
 	if err != nil {
 		if errors.Is(err, lagoondb.ErrNoResult) {
@@ -250,16 +220,18 @@ func redirectSession(
 
 // sessionHandler returns a ssh.Handler which writes a Lagoon access token to
 // the session stream and then closes the connection.
-func sessionHandler(log *slog.Logger, p *rbac.Permission,
+func sessionHandler(
+	log *slog.Logger,
+	p *rbac.Permission,
 	keycloakToken KeycloakTokenService,
-	keycloakPermission KeycloakUserInfoService,
-	ldb LagoonDBService) ssh.Handler {
+	ldb LagoonDBService,
+) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
 		// extract required info from the session context
 		ctx := s.Context()
 		log := log.With(slog.String("sessionID", ctx.SessionID()))
-		uid, ok := ctx.Value(userUUID).(*uuid.UUID)
+		userUUID, ok := ctx.Value(userUUIDkey).(uuid.UUID)
 		if !ok {
 			log.Warn("couldn't get user UUID from context")
 			_, err := fmt.Fprintf(s.Stderr(), "internal error. SID: %s\r\n",
@@ -270,11 +242,11 @@ func sessionHandler(log *slog.Logger, p *rbac.Permission,
 			}
 			return
 		}
-		log = log.With(slog.String("userUUID", uid.String()))
+		log = log.With(slog.String("userUUID", userUUID.String()))
 		if s.User() == "lagoon" {
-			tokenSession(s, log, keycloakToken, uid)
+			tokenSession(s, log, keycloakToken, userUUID)
 		} else {
-			redirectSession(s, log, p, keycloakPermission, ldb, uid)
+			redirectSession(s, log, p, ldb, userUUID)
 		}
 	}
 }

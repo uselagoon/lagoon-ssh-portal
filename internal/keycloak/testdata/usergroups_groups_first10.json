@@ -1,0 +1,72 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "eca344cd-2b81-4447-bcf9-ce07aa9d4a1b",
+    "name": "corp6-senior-devs",
+    "path": "/corp6-senior-devs",
+    "subGroupCount": 3,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "3c7dea60-6dec-4f2d-b8ac-f28aa9e206d9",
+    "name": "scott-test-ancestor-group",
+    "path": "/scott-test-ancestor-group",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "ee6d02d1-b14b-41dd-95b6-cb8c26b1a321",
+    "name": "scott-test-ancestor-group2",
+    "path": "/scott-test-ancestor-group2",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "bd9d6c6c-7f46-4cb3-93ab-1023cb379d21",
+    "name": "scott-test-group",
+    "path": "/scott-test-group",
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "796640a1-185c-4348-90ef-f776c9e828ed",
+    "name": "scott-test-group-empty",
+    "path": "/scott-test-group-empty",
+    "subGroupCount": 0,
+    "subGroups": []
+  }
+]

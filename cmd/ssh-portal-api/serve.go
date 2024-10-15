@@ -39,13 +39,6 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// get main process context, which cancels on SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
-	// init RBAC permission engine
-	var p *rbac.Permission
-	if cmd.BlockDeveloperSSH {
-		p = rbac.NewPermission(rbac.BlockDeveloperSSH())
-	} else {
-		p = rbac.NewPermission()
-	}
 	// init lagoon DB client
 	dbConf := mysql.NewConfig()
 	dbConf.Addr = cmd.APIDBAddress
@@ -53,7 +46,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	dbConf.Net = "tcp"
 	dbConf.Passwd = cmd.APIDBPassword
 	dbConf.User = cmd.APIDBUsername
-	l, err := lagoondb.NewClient(ctx, dbConf.FormatDSN())
+	ldb, err := lagoondb.NewClient(ctx, dbConf.FormatDSN())
 	if err != nil {
 		return fmt.Errorf("couldn't init lagoondb client: %v", err)
 	}
@@ -66,6 +59,13 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak client: %v", err)
 	}
+	// init RBAC permission engine
+	var p *rbac.Permission
+	if cmd.BlockDeveloperSSH {
+		p = rbac.NewPermission(k, ldb, rbac.BlockDeveloperSSH())
+	} else {
+		p = rbac.NewPermission(k, ldb)
+	}
 	// set up goroutine handler
 	eg, ctx := errgroup.WithContext(ctx)
 	// start the metrics server
@@ -73,7 +73,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// start serving SSH token requests
 	eg.Go(func() error {
 		// start serving NATS requests
-		return sshportalapi.ServeNATS(ctx, stop, log, p, l, k, cmd.NATSURL)
+		return sshportalapi.ServeNATS(ctx, stop, log, p, ldb, cmd.NATSURL)
 	})
 	return eg.Wait()
 }

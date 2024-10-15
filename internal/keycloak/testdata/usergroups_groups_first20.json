@@ -1,0 +1,44 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "5005c22e-48c3-46cd-bf4a-393f6e13e9a8",
+    "name": "project-a-website-for-dogs",
+    "path": "/project-a-website-for-dogs",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "0472e029-e829-41ea-ac01-94891fd2332b",
+    "name": "project-a-website-for-ducks",
+    "path": "/project-a-website-for-ducks",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "1ad2cd0c-5046-434f-9580-7b036a08222b",
+    "name": "project-a-website-for-fish",
+    "path": "/project-a-website-for-fish",
+    "subGroupCount": 2,
+    "subGroups": []
+  }
+]

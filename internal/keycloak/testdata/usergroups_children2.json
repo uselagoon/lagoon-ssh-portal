@@ -1,0 +1,84 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "2c0f9a62-3e50-4e90-913d-90db6cb47cce",
+    "name": "scott-test-child-group2-developer",
+    "parentId": "2e833d9b-39b7-4f25-b37f-cfb8765015ab",
+    "path": "/scott-test-ancestor-group2/scott-test-child-group2/scott-test-child-group2-developer",
+    "realmRoles": [
+      "developer"
+    ],
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {
+      "type": [
+        "role-subgroup"
+      ]
+    },
+    "clientRoles": {},
+    "id": "43db2a06-ca7c-482e-b068-23127ae5d50a",
+    "name": "scott-test-child-group2-maintainer",
+    "parentId": "2e833d9b-39b7-4f25-b37f-cfb8765015ab",
+    "path": "/scott-test-ancestor-group2/scott-test-child-group2/scott-test-child-group2-maintainer",
+    "realmRoles": [],
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {},
+    "clientRoles": {},
+    "id": "879d1d38-97d8-449a-affd-8529b8e31feb",
+    "name": "scott-test-grandchild-group2",
+    "parentId": "2e833d9b-39b7-4f25-b37f-cfb8765015ab",
+    "path": "/scott-test-ancestor-group2/scott-test-child-group2/scott-test-grandchild-group2",
+    "realmRoles": [],
+    "subGroupCount": 1,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "attributes": {},
+    "clientRoles": {},
+    "id": "c7d3b738-91f2-4cf1-aeec-2ab444eb3215",
+    "name": "scott-test-grandchild-group2b",
+    "parentId": "2e833d9b-39b7-4f25-b37f-cfb8765015ab",
+    "path": "/scott-test-ancestor-group2/scott-test-child-group2/scott-test-grandchild-group2b",
+    "realmRoles": [],
+    "subGroupCount": 1,
+    "subGroups": []
+  }
+]

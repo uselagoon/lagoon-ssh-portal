@@ -33,7 +33,7 @@ func (cmd *DumpGroupsCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak client: %v", err)
 	}
-	groupMap, err := k.GroupNameGroupIDMap(ctx)
+	groupMap, err := k.TopLevelGroupNameGroupIDMap(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get keycloak group map: %v", err)
 	}

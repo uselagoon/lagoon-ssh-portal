@@ -1,0 +1,72 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "c97d32cf-2459-4ce3-8529-df2a223f6682",
+    "name": "scott-test-group2",
+    "path": "/scott-test-group2",
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "d3fa3b78-1fe9-45c4-b735-4c07a41905eb",
+    "name": "test-group442",
+    "path": "/test-group442",
+    "subGroupCount": 0,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "54486df8-450d-4b62-8e10-223ac3419d05",
+    "name": "project-a-fishy-website",
+    "path": "/project-a-fishy-website",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "4dabd962-a772-4757-9de7-7245cc238086",
+    "name": "project-a-website-for-birds",
+    "path": "/project-a-website-for-birds",
+    "subGroupCount": 2,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "52c2e558-d939-4d76-b241-910386d59aa7",
+    "name": "project-a-website-for-cats",
+    "path": "/project-a-website-for-cats",
+    "subGroupCount": 2,
+    "subGroups": []
+  }
+]

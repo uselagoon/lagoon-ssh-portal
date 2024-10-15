@@ -1,0 +1,32 @@
+[
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "2e833d9b-39b7-4f25-b37f-cfb8765015ab",
+    "name": "scott-test-child-group2",
+    "parentId": "ee6d02d1-b14b-41dd-95b6-cb8c26b1a321",
+    "path": "/scott-test-ancestor-group2/scott-test-child-group2",
+    "subGroupCount": 3,
+    "subGroups": []
+  },
+  {
+    "access": {
+      "manage": true,
+      "manageMembers": true,
+      "manageMembership": true,
+      "view": true,
+      "viewMembers": true
+    },
+    "id": "7f22ce84-c0af-4ff4-afcd-288f0473deb5",
+    "name": "scott-test-child-group3",
+    "parentId": "ee6d02d1-b14b-41dd-95b6-cb8c26b1a321",
+    "path": "/scott-test-ancestor-group2/scott-test-child-group3",
+    "subGroupCount": 1,
+    "subGroups": []
+  }
+]

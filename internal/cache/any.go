@@ -10,28 +10,28 @@ const (
 	defaultTTL = time.Minute
 )
 
-// Cache is a generic, thread-safe, in-memory cache that stores a value with a
+// Any is a generic, thread-safe, in-memory cache that stores a value with a
 // TTL, after which the cache expires.
-type Cache[T any] struct {
+type Any[T any] struct {
 	data   T
 	expiry time.Time
 	ttl    time.Duration
 	mu     sync.Mutex
 }
 
-// Option is a functional option argument to NewCache().
-type Option[T any] func(*Cache[T])
+// AnyOption is a functional option argument to NewCache().
+type AnyOption[T any] func(*Any[T])
 
-// WithTTL sets the the Cache time-to-live to ttl.
-func WithTTL[T any](ttl time.Duration) Option[T] {
-	return func(c *Cache[T]) {
+// AnyWithTTL sets the the Cache time-to-live to ttl.
+func AnyWithTTL[T any](ttl time.Duration) AnyOption[T] {
+	return func(c *Any[T]) {
 		c.ttl = ttl
 	}
 }
 
-// NewCache instantiates a Cache for type T with a default TTL of 1 minute.
-func NewCache[T any](options ...Option[T]) *Cache[T] {
-	c := Cache[T]{
+// NewAny instantiates an Any cache for type T with a default TTL of 1 minute.
+func NewAny[T any](options ...AnyOption[T]) *Any[T] {
+	c := Any[T]{
 		ttl: defaultTTL,
 	}
 	for _, option := range options {
@@ -41,7 +41,7 @@ func NewCache[T any](options ...Option[T]) *Cache[T] {
 }
 
 // Set updates the value in the cache and sets the expiry to now+TTL.
-func (c *Cache[T]) Set(value T) {
+func (c *Any[T]) Set(value T) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.data = value
@@ -50,7 +50,7 @@ func (c *Cache[T]) Set(value T) {
 
 // Get retrieves the value from the cache. If cache has expired, the second
 // return value will be false.
-func (c *Cache[T]) Get() (T, bool) {
+func (c *Any[T]) Get() (T, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if time.Now().After(c.expiry) {
