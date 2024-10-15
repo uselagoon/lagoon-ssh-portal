@@ -3,6 +3,7 @@ package k8s
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -27,6 +28,13 @@ var (
 	// limitBytes defines the maximum number of bytes of logs returned from a
 	// single container
 	limitBytes int64 = 1 * 1024 * 1024 // 1MiB
+
+	// ErrConcurrentLogLimit indicates that the maximum number of concurrent log
+	// sessions has been reached.
+	ErrConcurrentLogLimit = errors.New("reached concurrent log limit")
+	// ErrLogTimeLimit indicates that the maximum log session time has been
+	// exceeded.
+	ErrLogTimeLimit = errors.New("exceeded maximum log session time")
 )
 
 // linewiseCopy reads strings separated by \n from logStream, and writes them
@@ -202,11 +210,27 @@ func (c *Client) newPodInformer(ctx context.Context,
 //     follow=false.
 //  2. ctx is cancelled (signalling that the SSH channel was closed).
 //  3. An unrecoverable error occurs.
-func (c *Client) Logs(ctx context.Context,
-	namespace, deployment, container string, follow bool, tailLines int64,
-	stdio io.ReadWriter) error {
+//
+// If a call to Logs would exceed the configured maximum number of concurrent
+// log sessions, ErrConcurrentLogLimit is returned.
+//
+// If the configured log time limit is exceeded, ErrLogTimeLimit is returned.
+func (c *Client) Logs(
+	ctx context.Context,
+	namespace,
+	deployment,
+	container string,
+	follow bool,
+	tailLines int64,
+	stdio io.ReadWriter,
+) error {
+	// Exit with an error if we have hit the concurrent log limit.
+	if !c.logSem.TryAcquire(1) {
+		return ErrConcurrentLogLimit
+	}
+	defer c.logSem.Release(1)
 	// Wrap the context so we can cancel subroutines of this function on error.
-	childCtx, cancel := context.WithCancel(ctx)
+	childCtx, cancel := context.WithTimeout(ctx, c.logTimeLimit)
 	defer cancel()
 	// Generate a requestID value to uniquely distinguish between multiple calls
 	// to this function. This requestID is used in readLogs() to distinguish
@@ -253,6 +277,9 @@ func (c *Client) Logs(ctx context.Context,
 				return fmt.Errorf("couldn't construct new pod informer: %v", err)
 			}
 			podInformer.Run(childCtx.Done())
+			if errors.Is(childCtx.Err(), context.DeadlineExceeded) {
+				return ErrLogTimeLimit
+			}
 			return nil
 		})
 	} else {
@@ -279,6 +306,9 @@ func (c *Client) Logs(ctx context.Context,
 					container, follow, tailLines, logs)
 				if readLogsErr != nil {
 					return fmt.Errorf("couldn't read logs on existing pods: %v", readLogsErr)
+				}
+				if errors.Is(childCtx.Err(), context.DeadlineExceeded) {
+					return ErrLogTimeLimit
 				}
 				return nil
 			})

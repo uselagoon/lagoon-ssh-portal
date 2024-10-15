@@ -153,7 +153,7 @@ func TestIdledDeployLabels(t *testing.T) {
 		t.Run(name, func(tt *testing.T) {
 			// create fake Kubernetes client with test deploys
 			c := &Client{
-				clientset: fake.NewSimpleClientset(tc.deploys),
+				clientset: fake.NewClientset(tc.deploys),
 			}
 			deploys, err := c.idledDeploys(context.Background(), testNS)
 			assert.NoError(tt, err, name)

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/semaphore"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -24,10 +25,12 @@ type Client struct {
 	config       *rest.Config
 	clientset    kubernetes.Interface
 	logStreamIDs sync.Map
+	logSem       *semaphore.Weighted
+	logTimeLimit time.Duration
 }
 
 // NewClient creates a new kubernetes API client.
-func NewClient() (*Client, error) {
+func NewClient(concurrentLogLimit uint, logTimeLimit time.Duration) (*Client, error) {
 	// create the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -39,7 +42,9 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		config:    config,
-		clientset: clientset,
+		config:       config,
+		clientset:    clientset,
+		logSem:       semaphore.NewWeighted(int64(concurrentLogLimit)),
+		logTimeLimit: logTimeLimit,
 	}, nil
 }
