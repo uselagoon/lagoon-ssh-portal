@@ -3,6 +3,7 @@ module github.com/uselagoon/ssh-portal
 go 1.22.2
 
 require (
+	al.essio.dev/pkg/shellescape v1.5.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MicahParks/keyfunc/v2 v2.1.0
 	github.com/alecthomas/assert/v2 v2.11.0
