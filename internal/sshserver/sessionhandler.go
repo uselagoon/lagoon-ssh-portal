@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"strings"
 	"time"
 
+	"al.essio.dev/pkg/shellescape"
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -86,7 +86,7 @@ func getSSHIntent(sftp bool, cmd []string) []string {
 	// if there is a command, wrap it in a shell the way openssh does
 	// https://github.com/openssh/openssh-portable/blob/
 	// 	73dcca12115aa12ed0d123b914d473c384e52651/session.c#L1705-L1713
-	return []string{"sh", "-c", strings.Join(cmd, " ")}
+	return []string{"sh", "-c", shellescape.QuoteCommand(cmd)}
 }
 
 // sessionHandler returns a ssh.Handler which connects the ssh session to the

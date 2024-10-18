@@ -39,6 +39,42 @@ func TestExec(t *testing.T) {
 			logAccessEnabled: false,
 			pty:              false,
 		},
+		"subshell": {
+			user:             "project-test",
+			deployment:       "cli",
+			rawCommand:       []string{"/bin/sh", "-c", "( echo foo; echo bar; echo baz ) | tail -n2"},
+			command:          []string{"sh", "-c", "/bin/sh -c '( echo foo; echo bar; echo baz ) | tail -n2'"},
+			sftp:             false,
+			logAccessEnabled: false,
+			pty:              false,
+		},
+		"process substitution 1": {
+			user:             "project-test",
+			deployment:       "cli",
+			rawCommand:       []string{"/bin/sh", "-c", "sleep 3 & echo $(pgrep sleep)"},
+			command:          []string{"sh", "-c", "/bin/sh -c 'sleep 3 & echo $(pgrep sleep)'"},
+			sftp:             false,
+			logAccessEnabled: false,
+			pty:              false,
+		},
+		"process substitution 2": {
+			user:             "project-test",
+			deployment:       "cli",
+			rawCommand:       []string{"/bin/sh", "-c", "sleep 3 & echo $( pgrep sleep )"},
+			command:          []string{"sh", "-c", "/bin/sh -c 'sleep 3 & echo $( pgrep sleep )'"},
+			sftp:             false,
+			logAccessEnabled: false,
+			pty:              false,
+		},
+		"shell variables": {
+			user:             "project-test",
+			deployment:       "cli",
+			rawCommand:       []string{"/bin/sh", "-c", "echo $$ $USER"},
+			command:          []string{"sh", "-c", "/bin/sh -c 'echo $$ $USER'"},
+			sftp:             false,
+			logAccessEnabled: false,
+			pty:              false,
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
