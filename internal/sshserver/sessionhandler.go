@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"al.essio.dev/pkg/shellescape"
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -74,19 +73,19 @@ func authCtxValues(ctx ssh.Context) (int, string, int, string, string, error) {
 // getSSHIntent analyses the SFTP flag and the raw command strings to determine
 // if the command should be wrapped, and returns the given cmd wrapped
 // appropriately.
-func getSSHIntent(sftp bool, cmd []string) []string {
+func getSSHIntent(sftp bool, rawCmd string) []string {
 	// if this is an sftp session we ignore any commands
 	if sftp {
 		return []string{"sftp-server", "-u", "0002"}
 	}
 	// if there is no command, assume the user wants a shell
-	if len(cmd) == 0 {
+	if len(rawCmd) == 0 {
 		return []string{"sh"}
 	}
 	// if there is a command, wrap it in a shell the way openssh does
 	// https://github.com/openssh/openssh-portable/blob/
 	// 	73dcca12115aa12ed0d123b914d473c384e52651/session.c#L1705-L1713
-	return []string{"sh", "-c", shellescape.QuoteCommand(cmd)}
+	return []string{"sh", "-c", rawCmd}
 }
 
 // sessionHandler returns a ssh.Handler which connects the ssh session to the
@@ -97,18 +96,35 @@ func getSSHIntent(sftp bool, cmd []string) []string {
 // handler is that the command is set to sftp-server. This implies that the
 // target container must have a sftp-server binary installed for sftp to work.
 // There is no support for a built-in sftp server.
-func sessionHandler(log *slog.Logger, c K8SAPIService,
-	sftp, logAccessEnabled bool) ssh.Handler {
+func sessionHandler(
+	log *slog.Logger,
+	c K8SAPIService,
+	sftp,
+	logAccessEnabled bool,
+) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
 		ctx := s.Context()
 		log := log.With(slog.String("sessionID", ctx.SessionID()))
 		log.Debug("starting session",
-			slog.Any("rawCommand", s.Command()),
+			slog.Any("command", s.Command()),
+			slog.String("rawCommand", s.RawCommand()),
 			slog.String("subsystem", s.Subsystem()),
 		)
 		// parse the command line arguments to extract any service or container args
-		service, container, logs, rawCmd := parseConnectionParams(s.Command())
+		//
+		// NOTE:
+		//
+		// * s.RawCommand() returns a string containing the arguments supplied to
+		//   the ssh client joined by a single space:
+		// 	 https://github.com/openssh/openssh-portable/blob/
+		// 		fe4305c37ffe53540a67586854e25f05cf615849/ssh.c#L1179-L1184
+		// * s.Command() returns a slice of strings split on space and parsed as
+		//   posix shell arguments:
+		// 	 https://github.com/openssh/openssh-portable/blob/
+		// 		fe4305c37ffe53540a67586854e25f05cf615849/ssh.c#L1179-L1184
+		service, container, logs, rawCmd :=
+			parseConnectionParams(s.Command(), s.RawCommand())
 		// validate the service and container
 		if err := k8s.ValidateLabelValue(service); err != nil {
 			log.Debug("invalid service name",

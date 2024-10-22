@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/anmitsu/go-shlex"
 	"github.com/gliderlabs/ssh"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
 	"go.uber.org/mock/gomock"
@@ -12,65 +13,27 @@ import (
 
 func TestExec(t *testing.T) {
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	var (
+		user       = "project-test"
+		deployment = "cli"
+	)
 	var testCases = map[string]struct {
-		user             string
-		deployment       string
-		rawCommand       []string
+		rawCommand       string
 		command          []string
 		sftp             bool
 		logAccessEnabled bool
 		pty              bool
 	}{
 		"bare interactive shell": {
-			user:             "project-test",
-			deployment:       "cli",
-			rawCommand:       nil,
+			rawCommand:       "",
 			command:          []string{"sh"},
 			sftp:             false,
 			logAccessEnabled: false,
 			pty:              true,
 		},
 		"non-interactive id command": {
-			user:             "project-test",
-			deployment:       "cli",
-			rawCommand:       []string{"id"},
+			rawCommand:       "id",
 			command:          []string{"sh", "-c", "id"},
-			sftp:             false,
-			logAccessEnabled: false,
-			pty:              false,
-		},
-		"subshell": {
-			user:             "project-test",
-			deployment:       "cli",
-			rawCommand:       []string{"/bin/sh", "-c", "( echo foo; echo bar; echo baz ) | tail -n2"},
-			command:          []string{"sh", "-c", "/bin/sh -c '( echo foo; echo bar; echo baz ) | tail -n2'"},
-			sftp:             false,
-			logAccessEnabled: false,
-			pty:              false,
-		},
-		"process substitution 1": {
-			user:             "project-test",
-			deployment:       "cli",
-			rawCommand:       []string{"/bin/sh", "-c", "sleep 3 & echo $(pgrep sleep)"},
-			command:          []string{"sh", "-c", "/bin/sh -c 'sleep 3 & echo $(pgrep sleep)'"},
-			sftp:             false,
-			logAccessEnabled: false,
-			pty:              false,
-		},
-		"process substitution 2": {
-			user:             "project-test",
-			deployment:       "cli",
-			rawCommand:       []string{"/bin/sh", "-c", "sleep 3 & echo $( pgrep sleep )"},
-			command:          []string{"sh", "-c", "/bin/sh -c 'sleep 3 & echo $( pgrep sleep )'"},
-			sftp:             false,
-			logAccessEnabled: false,
-			pty:              false,
-		},
-		"shell variables": {
-			user:             "project-test",
-			deployment:       "cli",
-			rawCommand:       []string{"/bin/sh", "-c", "echo $$ $USER"},
-			command:          []string{"sh", "-c", "/bin/sh -c 'echo $$ $USER'"},
 			sftp:             false,
 			logAccessEnabled: false,
 			pty:              false,
@@ -93,14 +56,17 @@ func TestExec(t *testing.T) {
 			// configure mocks
 			sshSession.EXPECT().Context().Return(sshContext)
 			sshContext.EXPECT().SessionID().Return("test_session_id")
-			sshSession.EXPECT().Command().Return(tc.rawCommand).AnyTimes()
+			sshSession.EXPECT().RawCommand().Return(tc.rawCommand).Times(2)
+			// emulate ssh.Session.Command()
+			command, _ := shlex.Split(tc.rawCommand, true)
+			sshSession.EXPECT().Command().Return(command).Times(2)
 			sshSession.EXPECT().Subsystem().Return("")
-			sshSession.EXPECT().User().Return(tc.user).AnyTimes()
+			sshSession.EXPECT().User().Return(user).Times(3)
 			k8sService.EXPECT().FindDeployment(
 				sshContext,
-				tc.user,
-				tc.deployment,
-			).Return(tc.deployment, nil)
+				user,
+				deployment,
+			).Return(deployment, nil)
 			sshContext.EXPECT().Value(sshserver.EnvironmentIDKey).Return(0)
 			sshContext.EXPECT().Value(sshserver.EnvironmentNameKey).Return("test")
 			sshContext.EXPECT().Value(sshserver.ProjectIDKey).Return(0)
@@ -111,8 +77,8 @@ func TestExec(t *testing.T) {
 			sshSession.EXPECT().Stderr().Return(os.Stderr)
 			k8sService.EXPECT().Exec(
 				sshContext,
-				tc.user,
-				tc.deployment,
+				user,
+				deployment,
 				"",
 				tc.command,
 				sshSession,
@@ -131,8 +97,7 @@ func TestLogs(t *testing.T) {
 	var testCases = map[string]struct {
 		user             string
 		deployment       string
-		rawCommand       []string
-		command          []string
+		rawCommand       string
 		sftp             bool
 		logAccessEnabled bool
 		pty              bool
@@ -142,8 +107,7 @@ func TestLogs(t *testing.T) {
 		"nginx logs": {
 			user:             "project-test",
 			deployment:       "nginx",
-			rawCommand:       []string{"service=nginx", "logs=tailLines=10"},
-			command:          nil,
+			rawCommand:       "service=nginx logs=tailLines=10",
 			sftp:             false,
 			logAccessEnabled: true,
 			pty:              false,
@@ -168,9 +132,12 @@ func TestLogs(t *testing.T) {
 			// configure mocks
 			sshSession.EXPECT().Context().Return(sshContext)
 			sshContext.EXPECT().SessionID().Return("test_session_id")
-			sshSession.EXPECT().Command().Return(tc.rawCommand).AnyTimes()
+			sshSession.EXPECT().RawCommand().Return(tc.rawCommand).Times(2)
+			// emulate ssh.Session.Command()
+			command, _ := shlex.Split(tc.rawCommand, true)
+			sshSession.EXPECT().Command().Return(command).Times(2)
 			sshSession.EXPECT().Subsystem().Return("")
-			sshSession.EXPECT().User().Return(tc.user).AnyTimes()
+			sshSession.EXPECT().User().Return(tc.user).Times(3)
 			k8sService.EXPECT().FindDeployment(
 				sshContext,
 				tc.user,

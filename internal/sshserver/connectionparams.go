@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	serviceRegex   = regexp.MustCompile(`^service=(.+)`)
-	containerRegex = regexp.MustCompile(`^container=(.+)`)
-	logsRegex      = regexp.MustCompile(`^logs=(.+)`)
+	serviceRegex   = regexp.MustCompile(`^service=(\S+)`)
+	containerRegex = regexp.MustCompile(`^container=(\S+)`)
+	logsRegex      = regexp.MustCompile(`^logs=(\S+)`)
 	tailLinesRegex = regexp.MustCompile(`^tailLines=(\d+)$`)
 )
 
@@ -26,7 +26,7 @@ var (
 	ErrNoServiceForLogs = errors.New("missing service argument for logs argument")
 )
 
-// parseConnectionParams takes the raw SSH command, and parses out any
+// parseConnectionParams takes the split and raw SSH command, and parses out any
 // leading service=..., container=..., and logs=... arguments. It returns:
 //   - If a service=... argument is given, the value of that argument.
 //     If no such argument is given, it falls back to a default of "cli".
@@ -34,8 +34,8 @@ var (
 //     If no such argument is given, it returns an empty string.
 //   - If a logs=... argument is given, the value of that argument.
 //     If no such argument is given, it returns an empty string.
-//   - The remaining arguments as a slice of strings, with any leading
-//     service=, container=, or logs= arguments removed.
+//   - The remaining raw SSH command, with any leading service=, container=, or
+//     logs= arguments removed.
 //
 // Notes about the logic implemented here:
 //   - service=... must be given as the first argument to be recognised.
@@ -48,48 +48,54 @@ var (
 //
 //	[service=... [container=...]] CMD...
 //	service=... [container=...] logs=...
-func parseConnectionParams(args []string) (string, string, string, []string) {
+func parseConnectionParams(
+	cmd []string,
+	rawCmd string,
+) (string, string, string, string) {
 	// exit early if we have no args
-	if len(args) == 0 {
-		return "cli", "", "", nil
+	if len(cmd) == 0 {
+		return "cli", "", "", rawCmd
 	}
 	// check for service argument
-	serviceMatches := serviceRegex.FindStringSubmatch(args[0])
+	serviceMatches := serviceRegex.FindStringSubmatch(cmd[0])
 	if len(serviceMatches) == 0 {
 		// no service= match, so assume cli and return all args
-		return "cli", "", "", args
+		return "cli", "", "", rawCmd
 	}
 	service := serviceMatches[1]
+	rawCmd = strings.TrimSpace(serviceRegex.ReplaceAllString(rawCmd, ""))
 	// exit early if we are out of arguments
-	if len(args) == 1 {
-		return service, "", "", nil
+	if len(cmd) == 1 {
+		return service, "", "", rawCmd
 	}
 	// check for container and/or logs argument
-	containerMatches := containerRegex.FindStringSubmatch(args[1])
+	containerMatches := containerRegex.FindStringSubmatch(cmd[1])
 	if len(containerMatches) == 0 {
 		// no container= match, so check for logs=
-		logsMatches := logsRegex.FindStringSubmatch(args[1])
+		logsMatches := logsRegex.FindStringSubmatch(cmd[1])
 		if len(logsMatches) == 0 {
 			// no container= or logs= match, so just return the args
-			return service, "", "", args[1:]
+			return service, "", "", rawCmd
 		}
-		// found logs=, so return it along with the remaining args
-		// (which should be empty)
-		return service, "", logsMatches[1], args[2:]
+		rawCmd = strings.TrimSpace(logsRegex.ReplaceAllString(rawCmd, ""))
+		// found logs=, so return it along with the remaining rawCmd
+		return service, "", logsMatches[1], rawCmd
 	}
 	container := containerMatches[1]
+	rawCmd = strings.TrimSpace(containerRegex.ReplaceAllString(rawCmd, ""))
 	// exit early if we are out of arguments
-	if len(args) == 2 {
-		return service, container, "", nil
+	if len(cmd) == 2 {
+		return service, container, "", rawCmd
 	}
 	// container= matched, so check for logs=
-	logsMatches := logsRegex.FindStringSubmatch(args[2])
+	logsMatches := logsRegex.FindStringSubmatch(cmd[2])
 	if len(logsMatches) == 0 {
 		// no logs= match, so just return the remaining args
-		return service, container, "", args[2:]
+		return service, container, "", rawCmd
 	}
+	rawCmd = strings.TrimSpace(logsRegex.ReplaceAllString(rawCmd, ""))
 	// container= and logs= matched, so return both
-	return service, container, logsMatches[1], args[3:]
+	return service, container, logsMatches[1], rawCmd
 }
 
 // parseLogsArg checks that:
@@ -104,8 +110,8 @@ func parseConnectionParams(args []string) (string, string, string, []string) {
 //
 // Note that if multiple tailLines= values are specified, the last one will be
 // the value used.
-func parseLogsArg(service, logs string, cmd []string) (bool, int64, error) {
-	if len(cmd) != 0 {
+func parseLogsArg(service, logs string, rawCmd string) (bool, int64, error) {
+	if len(rawCmd) != 0 {
 		return false, 0, ErrCmdArgsAfterLogs
 	}
 	if service == "" {
