@@ -19,12 +19,13 @@ import (
 // (e.g. via signal)
 const shutdownTimeout = 8 * time.Second
 
-// disableSHA1Kex returns a ServerConfig which relies on default for everything
-// except key exchange algorithms. There it removes the SHA1 based algorithms.
-//
-// This works around https://github.com/golang/go/issues/59593
-func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
+// serverConfig returns a ServerConfig of default values with overriden public
+// key algorithms and failure attempts.
+func serverConfig(_ ssh.Context) *gossh.ServerConfig {
 	c := gossh.ServerConfig{}
+
+	// Remove the SHA1 based key algorithms.
+	// This works around https://github.com/golang/go/issues/59593
 	c.Config.KeyExchanges = []string{
 		"curve25519-sha256",
 		"curve25519-sha256@libssh.org",
@@ -33,6 +34,10 @@ func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 		"ecdh-sha2-nistp521",
 		"diffie-hellman-group14-sha256",
 	}
+
+	// Increase the number of public-key attempts before failure.
+	c.MaxAuthTries = 18
+
 	return &c
 }
 
@@ -53,7 +58,7 @@ func Serve(
 			"sftp": ssh.SubsystemHandler(sessionHandler(log, c, true, logAccessEnabled)),
 		},
 		PublicKeyHandler:     pubKeyAuth(log, nc, c),
-		ServerConfigCallback: disableSHA1Kex,
+		ServerConfigCallback: serverConfig,
 		Banner:               banner,
 	}
 	for _, hk := range hostKeys {
