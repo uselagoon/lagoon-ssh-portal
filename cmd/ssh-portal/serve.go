@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/uselagoon/ssh-portal/internal/bus"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	"github.com/uselagoon/ssh-portal/internal/metrics"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
@@ -36,24 +36,12 @@ type ServeCmd struct {
 // Run the serve command to handle SSH connection requests.
 func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	// get main process context, which cancels on SIGTERM
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
-	defer stop()
-	// get nats server connection
-	nc, err := nats.Connect(cmd.NATSServer,
-		nats.Name("ssh-portal"),
-		// exit on connection close
-		nats.ClosedHandler(func(_ *nats.Conn) {
-			log.Error("nats connection closed")
-			stop()
-		}),
-		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			log.Warn("nats disconnected", slog.Any("error", err))
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Info("nats reconnected", slog.String("url", nc.ConnectedUrl()))
-		}))
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer cancel()
+	// get nats client
+	nc, err := bus.NewNATSClient(cmd.NATSServer, log, cancel)
 	if err != nil {
-		return fmt.Errorf("couldn't connect to NATS server: %v", err)
+		return fmt.Errorf("couldn't get nats client: %v", err)
 	}
 	defer nc.Close()
 	// start listening on TCP port

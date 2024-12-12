@@ -38,7 +38,7 @@ func Serve(
 ) error {
 	srv := ssh.Server{
 		Handler:          sessionHandler(log, p, keycloakToken, ldb),
-		PublicKeyHandler: pubKeyAuth(log, ldb),
+		PublicKeyHandler: pubKeyHandler(log, ldb),
 	}
 	for _, hk := range hostKeys {
 		if err := srv.SetOption(ssh.HostKeyPEM(hk)); err != nil {

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/nats-io/nats.go"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -18,6 +17,11 @@ import (
 // default server shutdown timeout once the top-level context is cancelled
 // (e.g. via signal)
 const shutdownTimeout = 8 * time.Second
+
+// NATSService represents a NATS RPC service.
+type NATSService interface {
+	KeyCanAccessEnvironment(string, string, string, int, int) (bool, error)
+}
 
 // disableSHA1Kex returns a ServerConfig which relies on default for everything
 // except key exchange algorithms. There it removes the SHA1 based algorithms.
@@ -40,7 +44,7 @@ func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 func Serve(
 	ctx context.Context,
 	log *slog.Logger,
-	nc *nats.Conn,
+	nats NATSService,
 	l net.Listener,
 	c *k8s.Client,
 	hostKeys [][]byte,
@@ -52,7 +56,7 @@ func Serve(
 		SubsystemHandlers: map[string]ssh.SubsystemHandler{
 			"sftp": ssh.SubsystemHandler(sessionHandler(log, c, true, logAccessEnabled)),
 		},
-		PublicKeyHandler:     pubKeyAuth(log, nc, c),
+		PublicKeyHandler:     pubKeyHandler(log, nats, c),
 		ServerConfigCallback: disableSHA1Kex,
 		Banner:               banner,
 	}

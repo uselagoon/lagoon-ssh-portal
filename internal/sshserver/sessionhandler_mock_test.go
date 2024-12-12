@@ -85,3 +85,21 @@ func (mr *MockK8SAPIServiceMockRecorder) Logs(arg0, arg1, arg2, arg3, arg4, arg5
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logs", reflect.TypeOf((*MockK8SAPIService)(nil).Logs), arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
+
+// NamespaceDetails mocks base method.
+func (m *MockK8SAPIService) NamespaceDetails(arg0 context.Context, arg1 string) (int, int, string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NamespaceDetails", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(string)
+	ret3, _ := ret[3].(string)
+	ret4, _ := ret[4].(error)
+	return ret0, ret1, ret2, ret3, ret4
+}
+
+// NamespaceDetails indicates an expected call of NamespaceDetails.
+func (mr *MockK8SAPIServiceMockRecorder) NamespaceDetails(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NamespaceDetails", reflect.TypeOf((*MockK8SAPIService)(nil).NamespaceDetails), arg0, arg1)
+}

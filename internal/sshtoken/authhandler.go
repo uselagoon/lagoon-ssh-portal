@@ -3,37 +3,37 @@ package sshtoken
 import (
 	"errors"
 	"log/slog"
-	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/google/uuid"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	gossh "golang.org/x/crypto/ssh"
 )
 
-type ctxKey int
-
 const (
-	userUUIDkey ctxKey = iota
+	userUUIDKey = "uselagoon/userUUID"
 )
 
-var (
-	authnAttemptsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshtoken_authentication_attempts_total",
-		Help: "The total number of ssh-token authentication attempts",
-	})
-	authnSuccessTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshtoken_authentication_success_total",
-		Help: "The total number of successful ssh-token authentications",
-	})
-)
+// permissionsMarshal takes the user UUID and stores it in the Extensions field
+// of the ssh connection permissions.
+//
+// The Extensions field is the only way to safely pass information between
+// handlers. See https://pkg.go.dev/vuln/GO-2024-3321
+func permissionsMarshal(ctx ssh.Context, userUUID uuid.UUID) {
+	ctx.Permissions().Extensions = map[string]string{
+		userUUIDKey: userUUID.String(),
+	}
+}
 
 // pubKeyAuth returns a ssh.PublicKeyHandler which accepts any key which
-// matches a user, and the associated user UUID to the ssh context.
-func pubKeyAuth(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
+// matches a user, and adds the associated user UUID to the ssh permissions
+// extensions map.
+//
+// Note that this function will be called for ALL public keys presented by the
+// client, even if the client does not go on to prove ownership of the key by
+// signing with it. See https://pkg.go.dev/vuln/GO-2024-3321
+func pubKeyHandler(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
-		authnAttemptsTotal.Inc()
 		log := log.With(slog.String("sessionID", ctx.SessionID()))
 		// parse SSH public key
 		pubKey, err := gossh.ParsePublicKey(key.Marshal())
@@ -54,17 +54,7 @@ func pubKeyAuth(log *slog.Logger, ldb LagoonDBService) ssh.PublicKeyHandler {
 			}
 			return false
 		}
-		// update last_used
-		if err := ldb.SSHKeyUsed(ctx, fingerprint, time.Now()); err != nil {
-			log.Error("couldn't update ssh key last used: %v",
-				slog.Any("error", err))
-			return false
-		}
-		// The SSH key fingerprint was in the database so "authentication" was
-		// successful. Inject the user UUID into the context so it can be used in
-		// the session handler.
-		authnSuccessTotal.Inc()
-		ctx.SetValue(userUUIDkey, *user.UUID)
+		permissionsMarshal(ctx, *user.UUID)
 		log.Info("authentication successful",
 			slog.String("userUUID", user.UUID.String()))
 		return true

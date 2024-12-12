@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/k8s"
+	gossh "golang.org/x/crypto/ssh"
 	"k8s.io/utils/exec"
 )
 
@@ -20,6 +22,7 @@ type K8SAPIService interface {
 		io.Writer, bool, <-chan ssh.Window) error
 	FindDeployment(context.Context, string, string) (string, error)
 	Logs(context.Context, string, string, string, bool, int64, io.ReadWriter) error
+	NamespaceDetails(context.Context, string) (int, int, string, string, error)
 }
 
 var (
@@ -37,37 +40,44 @@ var (
 	})
 )
 
-// authCtxValues extracts the context values set by the authhandler.
-func authCtxValues(ctx ssh.Context) (int, string, int, string, string, error) {
-	var ok bool
+// permissionsUnmarshal extracts details of the Lagoon environment identified
+// in the pubKeyHandler which were stored in the Extensions field of the ssh
+// connection. See permissionsMarshal.
+func permissionsUnmarshal(ctx ssh.Context) (int, int, string, string, error) {
 	var eid, pid int
-	var ename, pname, fingerprint string
-	eid, ok = ctx.Value(environmentIDKey).(int)
+	var ename, pname string
+	var err error
+	eidString, ok := ctx.Permissions().Extensions[environmentIDKey]
 	if !ok {
-		return eid, ename, pid, pname, fingerprint,
-			fmt.Errorf("couldn't extract environment ID from session context")
+		return eid, pid, ename, pname,
+			fmt.Errorf("missing environmentID in permissions")
 	}
-	ename, ok = ctx.Value(environmentNameKey).(string)
+	eid, err = strconv.Atoi(eidString)
+	if err != nil {
+		return eid, pid, ename, pname,
+			fmt.Errorf("couldn't parse environmentID in permissions")
+	}
+	pidString, ok := ctx.Permissions().Extensions[projectIDKey]
 	if !ok {
-		return eid, ename, pid, pname, fingerprint,
-			fmt.Errorf("couldn't extract environment name from session context")
+		return eid, pid, ename, pname,
+			fmt.Errorf("missing projectID in permissions")
 	}
-	pid, ok = ctx.Value(projectIDKey).(int)
+	pid, err = strconv.Atoi(pidString)
+	if err != nil {
+		return eid, pid, ename, pname,
+			fmt.Errorf("couldn't parse projectID in permissions")
+	}
+	ename, ok = ctx.Permissions().Extensions[environmentNameKey]
 	if !ok {
-		return eid, ename, pid, pname, fingerprint,
-			fmt.Errorf("couldn't extract project ID from session context")
+		return eid, pid, ename, pname,
+			fmt.Errorf("missing environmentName in permissions")
 	}
-	pname, ok = ctx.Value(projectNameKey).(string)
+	pname, ok = ctx.Permissions().Extensions[projectNameKey]
 	if !ok {
-		return eid, ename, pid, pname, fingerprint,
-			fmt.Errorf("couldn't extract project name from session context")
+		return eid, pid, ename, pname,
+			fmt.Errorf("missing projectName in permissions")
 	}
-	fingerprint, ok = ctx.Value(sshFingerprint).(string)
-	if !ok {
-		return eid, ename, pid, pname, fingerprint,
-			fmt.Errorf("couldn't extract SSH key fingerprint from session context")
-	}
-	return eid, ename, pid, pname, fingerprint, nil
+	return eid, pid, ename, pname, nil
 }
 
 // getSSHIntent analyses the SFTP flag and the raw command strings to determine
@@ -162,9 +172,9 @@ func sessionHandler(
 			return
 		}
 		// extract info passed through the context by the authhandler
-		eid, ename, pid, pname, fingerprint, err := authCtxValues(ctx)
+		eid, pid, ename, pname, err := permissionsUnmarshal(ctx)
 		if err != nil {
-			log.Error("couldn't extract auth values from context",
+			log.Error("couldn't unmarshal values from permissions",
 				slog.Any("error", err))
 			_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
 				ctx.SessionID())
@@ -211,7 +221,7 @@ func sessionHandler(
 			log.Info("sending logs to SSH client",
 				slog.Int("environmentID", eid),
 				slog.Int("projectID", pid),
-				slog.String("SSHFingerprint", fingerprint),
+				slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
 				slog.String("container", container),
 				slog.String("deployment", deployment),
 				slog.String("environmentName", ename),
@@ -231,7 +241,7 @@ func sessionHandler(
 			slog.Bool("pty", pty),
 			slog.Int("environmentID", eid),
 			slog.Int("projectID", pid),
-			slog.String("SSHFingerprint", fingerprint),
+			slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
 			slog.String("container", container),
 			slog.String("deployment", deployment),
 			slog.String("environmentName", ename),
