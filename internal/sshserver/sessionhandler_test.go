@@ -1,6 +1,7 @@
 package sshserver_test
 
 import (
+	"crypto/ed25519"
 	"log/slog"
 	"os"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
 	"go.uber.org/mock/gomock"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 func TestExec(t *testing.T) {
@@ -67,11 +69,21 @@ func TestExec(t *testing.T) {
 				user,
 				deployment,
 			).Return(deployment, nil)
-			sshContext.EXPECT().Value(sshserver.EnvironmentIDKey).Return(0)
-			sshContext.EXPECT().Value(sshserver.EnvironmentNameKey).Return("test")
-			sshContext.EXPECT().Value(sshserver.ProjectIDKey).Return(0)
-			sshContext.EXPECT().Value(sshserver.ProjectNameKey).Return("project")
-			sshContext.EXPECT().Value(sshserver.SSHFingerprint).Return("fingerprint")
+			// emulate the auth handler and marshal the details
+			sshPermissions := ssh.Permissions{Permissions: &gossh.Permissions{}}
+			sshContext.EXPECT().Permissions().Return(&sshPermissions).Times(5)
+			sshserver.PermissionsMarshal(sshContext, 1, 2, "foo", "bar")
+			// set up public key mock
+			publicKey, _, err := ed25519.GenerateKey(nil)
+			if err != nil {
+				tt.Fatal(err)
+			}
+			sshPublicKey, err := gossh.NewPublicKey(publicKey)
+			if err != nil {
+				tt.Fatal(err)
+			}
+			sshSession.EXPECT().PublicKey().Return(sshPublicKey)
+			// configure remaining mocks
 			winch := make(<-chan ssh.Window)
 			sshSession.EXPECT().Pty().Return(ssh.Pty{}, winch, tc.pty)
 			sshSession.EXPECT().Stderr().Return(os.Stderr)
@@ -143,15 +155,23 @@ func TestLogs(t *testing.T) {
 				tc.user,
 				tc.deployment,
 			).Return(tc.deployment, nil)
-			sshContext.EXPECT().Value(sshserver.EnvironmentIDKey).Return(0)
-			sshContext.EXPECT().Value(sshserver.EnvironmentNameKey).Return("test")
-			sshContext.EXPECT().Value(sshserver.ProjectIDKey).Return(0)
-			sshContext.EXPECT().Value(sshserver.ProjectNameKey).Return("project")
-			sshContext.EXPECT().Value(sshserver.SSHFingerprint).Return("fingerprint")
-
+			// emulate the auth handler and marshal the details
+			sshPermissions := ssh.Permissions{Permissions: &gossh.Permissions{}}
+			sshContext.EXPECT().Permissions().Return(&sshPermissions).Times(5)
+			sshserver.PermissionsMarshal(sshContext, 1, 2, "foo", "bar")
+			// set up public key mock
+			publicKey, _, err := ed25519.GenerateKey(nil)
+			if err != nil {
+				tt.Fatal(err)
+			}
+			sshPublicKey, err := gossh.NewPublicKey(publicKey)
+			if err != nil {
+				tt.Fatal(err)
+			}
+			sshSession.EXPECT().PublicKey().Return(sshPublicKey)
 			// called by context.WithCancel()
 			sshContext.EXPECT().Value(gomock.Any()).Return(nil).AnyTimes()
-
+			// configure remaining mocks
 			sshContext.EXPECT().Done().Return(make(<-chan struct{})).AnyTimes()
 			k8sService.EXPECT().Logs(
 				gomock.Any(), // private childCtx

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoondb"
 	"github.com/uselagoon/ssh-portal/internal/rbac"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 // KeycloakTokenService provides methods for querying the Keycloak API for user
@@ -218,6 +220,17 @@ func redirectSession(
 		slog.String("sshPort", sshPort))
 }
 
+// permissionsUnmarshal extracts the user UUID identified in the pubKeyHandler
+// which was stored in the Extensions field of the ssh connection. See
+// permissionsMarshal.
+func permissionsUnmarshal(ctx ssh.Context) (uuid.UUID, error) {
+	userUUIDString, ok := ctx.Permissions().Extensions[userUUIDKey]
+	if !ok {
+		return uuid.UUID{}, fmt.Errorf("missing userUUID in permissions")
+	}
+	return uuid.Parse(userUUIDString)
+}
+
 // sessionHandler returns a ssh.Handler which writes a Lagoon access token to
 // the session stream and then closes the connection.
 func sessionHandler(
@@ -228,12 +241,25 @@ func sessionHandler(
 ) ssh.Handler {
 	return func(s ssh.Session) {
 		sessionTotal.Inc()
-		// extract required info from the session context
 		ctx := s.Context()
-		log := log.With(slog.String("sessionID", ctx.SessionID()))
-		userUUID, ok := ctx.Value(userUUIDkey).(uuid.UUID)
-		if !ok {
-			log.Warn("couldn't get user UUID from context")
+		fingerprint := gossh.FingerprintSHA256(s.PublicKey())
+		log = log.With(
+			slog.String("fingerprint", fingerprint),
+			slog.String("sessionID", ctx.SessionID()),
+		)
+		// update last_used, since at this point the key has been used to
+		// authenticate the session
+		if err := ldb.SSHKeyUsed(ctx, fingerprint, time.Now()); err != nil {
+			log.Error("couldn't update ssh key last used: %v",
+				slog.Any("error", err))
+			return
+		}
+		// Get the user UUID to pass on to the tokenSession or redirectSession
+		userUUID, err := permissionsUnmarshal(ctx)
+		if err != nil {
+			log.Warn(
+				"couldn't get userUUID from ssh session context",
+				slog.Any("error", err))
 			_, err := fmt.Fprintf(s.Stderr(), "internal error. SID: %s\r\n",
 				ctx.SessionID())
 			if err != nil {

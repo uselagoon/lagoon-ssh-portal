@@ -1,60 +1,50 @@
 package sshserver
 
 import (
-	"encoding/json"
 	"log/slog"
-	"time"
+	"strconv"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/nats-io/nats.go"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/uselagoon/ssh-portal/internal/bus"
-	"github.com/uselagoon/ssh-portal/internal/k8s"
 	gossh "golang.org/x/crypto/ssh"
 )
 
-type ctxKey int
-
 const (
-	environmentIDKey ctxKey = iota
-	environmentNameKey
-	projectIDKey
-	projectNameKey
-	sshFingerprint
+	environmentIDKey   = "uselagoon/environmentID"
+	environmentNameKey = "uselagoon/environmentName"
+	projectIDKey       = "uselagoon/projectID"
+	projectNameKey     = "uselagoon/projectName"
 )
 
-var (
-	natsTimeout = 8 * time.Second
-)
+// permissionsMarshal takes details of the Lagoon environment and stores them
+// in the Extensions field of the ssh connection permissions.
+//
+// The Extensions field is the only way to safely pass information between
+// handlers. See https://pkg.go.dev/vuln/GO-2024-3321
+func permissionsMarshal(ctx ssh.Context, eid, pid int, ename, pname string) {
+	ctx.Permissions().Extensions = map[string]string{
+		environmentIDKey:   strconv.Itoa(eid),
+		environmentNameKey: ename,
+		projectIDKey:       strconv.Itoa(pid),
+		projectNameKey:     pname,
+	}
+}
 
-var (
-	authAttemptsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshportal_authentication_attempts_total",
-		Help: "The total number of ssh-portal authentication attempts",
-	})
-	authSuccessTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshportal_authentication_success_total",
-		Help: "The total number of successful ssh-portal authentications",
-	})
-)
-
-// pubKeyAuth returns a ssh.PublicKeyHandler which queries the remote
+// pubKeyHandler returns a ssh.PublicKeyHandler which queries the remote
 // ssh-portal-api for Lagoon SSH authorization.
-func pubKeyAuth(
+//
+// Note that this function will be called for ALL public keys presented by the
+// client, even if the client does not go on to prove ownership of the key by
+// signing with it. See https://pkg.go.dev/vuln/GO-2024-3321
+func pubKeyHandler(
 	log *slog.Logger,
-	nc *nats.Conn,
-	c *k8s.Client,
+	nc NATSService,
+	c K8SAPIService,
 ) ssh.PublicKeyHandler {
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
-		authAttemptsTotal.Inc()
-		log := log.With(slog.String("sessionID", ctx.SessionID()))
-		// parse SSH public key
-		pubKey, err := gossh.ParsePublicKey(key.Marshal())
-		if err != nil {
-			log.Warn("couldn't parse SSH public key", slog.Any("error", err))
-			return false
-		}
+		log := log.With(
+			slog.String("sessionID", ctx.SessionID()),
+			slog.String("namespace", ctx.User()),
+		)
 		// get Lagoon labels from namespace if available
 		eid, pid, ename, pname, err := c.NamespaceDetails(ctx, ctx.User())
 		if err != nil {
@@ -62,46 +52,27 @@ func pubKeyAuth(
 				slog.String("namespace", ctx.User()), slog.Any("error", err))
 			return false
 		}
-		// construct ssh access query
-		fingerprint := gossh.FingerprintSHA256(pubKey)
-		queryData, err := json.Marshal(bus.SSHAccessQuery{
-			SSHFingerprint: fingerprint,
-			NamespaceName:  ctx.User(),
-			ProjectID:      pid,
-			EnvironmentID:  eid,
-			SessionID:      ctx.SessionID(),
-		})
+		fingerprint := gossh.FingerprintSHA256(key)
+		ok, err := nc.KeyCanAccessEnvironment(
+			ctx.SessionID(),
+			fingerprint,
+			ctx.User(),
+			pid,
+			eid,
+		)
 		if err != nil {
-			log.Warn("couldn't marshal NATS request", slog.Any("error", err))
-			return false
-		}
-		// send query
-		msg, err := nc.Request(bus.SubjectSSHAccessQuery, queryData, natsTimeout)
-		if err != nil {
-			log.Warn("couldn't make NATS request", slog.Any("error", err))
+			log.Warn("couldn't query permission via NATS", slog.Any("error", err))
 			return false
 		}
 		// handle response
-		var ok bool
-		if err := json.Unmarshal(msg.Data, &ok); err != nil {
-			log.Warn("couldn't unmarshal response", slog.Any("response", msg.Data))
-			return false
-		}
 		if !ok {
 			log.Debug("SSH access not authorized",
-				slog.String("fingerprint", fingerprint),
-				slog.String("namespace", ctx.User()))
+				slog.String("fingerprint", fingerprint))
 			return false
 		}
-		authSuccessTotal.Inc()
-		ctx.SetValue(environmentIDKey, eid)
-		ctx.SetValue(environmentNameKey, ename)
-		ctx.SetValue(projectIDKey, pid)
-		ctx.SetValue(projectNameKey, pname)
-		ctx.SetValue(sshFingerprint, fingerprint)
 		log.Debug("SSH access authorized",
-			slog.String("fingerprint", fingerprint),
-			slog.String("namespace", ctx.User()))
+			slog.String("fingerprint", fingerprint))
+		permissionsMarshal(ctx, eid, pid, ename, pname)
 		return true
 	}
 }
