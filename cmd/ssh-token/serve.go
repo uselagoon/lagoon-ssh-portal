@@ -32,6 +32,7 @@ type ServeCmd struct {
 	HostKeyED25519                 string `kong:"env='HOST_KEY_ED25519',help='PEM encoded Ed25519 host key'"`
 	HostKeyRSA                     string `kong:"env='HOST_KEY_RSA',help='PEM encoded RSA host key'"`
 	KeycloakBaseURL                string `kong:"required,env='KEYCLOAK_BASE_URL',help='Keycloak Base URL'"`
+	KeycloakInsecureTLS            bool   `kong:"env='KEYCLOAK_INSECURE_TLS',help='Keycloak Insecure TLS'"`
 	KeycloakPermissionClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak service-api OAuth2 Client ID'"`
 	KeycloakPermissionClientSecret string `kong:"env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak service-api OAuth2 Client Secret'"`
 	KeycloakRateLimit              int    `kong:"default=10,env='KEYCLOAK_RATE_LIMIT',help='Keycloak API Rate Limit (requests/second)'"`
@@ -61,7 +62,8 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 		cmd.KeycloakBaseURL,
 		cmd.KeycloakTokenClientID,
 		cmd.KeycloakTokenClientSecret,
-		cmd.KeycloakRateLimit)
+		cmd.KeycloakRateLimit,
+		cmd.KeycloakInsecureTLS)
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak token client: %v", err)
 	}
@@ -70,7 +72,8 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 		cmd.KeycloakBaseURL,
 		cmd.KeycloakPermissionClientID,
 		cmd.KeycloakPermissionClientSecret,
-		cmd.KeycloakRateLimit)
+		cmd.KeycloakRateLimit,
+		cmd.KeycloakInsecureTLS)
 	if err != nil {
 		return fmt.Errorf("couldn't init keycloak permission client: %v", err)
 	}
