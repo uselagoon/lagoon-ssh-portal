@@ -4,6 +4,7 @@ package keycloak
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -73,12 +74,16 @@ func NewClient(
 	clientID,
 	clientSecret string,
 	rateLimit int,
+	insecureTLS bool,
 ) (*Client, error) {
 	// discover OIDC config
 	baseURL, err := url.Parse(keycloakURL)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse keycloak base URL %s: %v",
 			keycloakURL, err)
+	}
+	if insecureTLS {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	issuerURL := *baseURL
 	issuerURL.Path = path.Join(issuerURL.Path, "auth/realms/lagoon")
