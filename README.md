@@ -168,6 +168,17 @@ The build process requires [goreleaser](https://github.com/goreleaser/goreleaser
 
 `make release-snapshot` will build binaries and docker images for all configured architectures.
 
+### Build manually
+
+Regular `go build` / `docker build` also works with the right incantations:
+
+```bash
+# example manual build command for ssh-portal binary/image
+# adjust as required for other binaries/architectures
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/ssh-portal ./cmd/ssh-portal
+docker build --build-arg=BINARY=dist/ssh-portal -t foo/ssh-portal:v99 --platform=linux/amd64 .
+```
+
 ### Running tests
 
 `make test` will run the test suite.
