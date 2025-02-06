@@ -160,6 +160,32 @@ This helps to correlate error messages reported by users with detailed errors in
 
 ## Development tips
 
+### Build locally
+
+The build process requires [goreleaser](https://github.com/goreleaser/goreleaser) 2.x to be installed in your path.
+
+`make build` will build a binary for your local architecture in `dist/`.
+
+`make release-snapshot` will build binaries and docker images for all configured architectures.
+
+### Build manually
+
+Regular `go build` / `docker build` also works with the right incantations:
+
+```bash
+# example manual build command for ssh-portal binary/image
+# adjust as required for other binaries/architectures
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/ssh-portal ./cmd/ssh-portal
+docker build --build-arg=BINARY=dist/ssh-portal -t foo/ssh-portal:v99 --platform=linux/amd64 .
+```
+
+### Running tests
+
+`make test` will run the test suite.
+It regenerates code, so requires [mockgen](https://github.com/uber-go/mock/) and [enumer](https://github.com/dmarkham/enumer/) to be installed in your path.
+
+Alternatively you can just run `go test -v ./...` manually to avoid regenerating any code.
+
 ### Debugging Keycloak permissions
 
 A command to debug Keycloak permissions locally is included in `./cmd/keycloak-debug`.

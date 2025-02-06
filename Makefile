@@ -14,8 +14,14 @@ generate: mod-tidy
 
 .PHONY: build
 build:
-	GOVERSION=$$(go version) \
-						goreleaser build --clean --debug --single-target --snapshot
+	# build a binary for the local architecture only
+	goreleaser build --verbose --clean --single-target --snapshot
+
+.PHONY: release-snapshot
+release-snapshot:
+	# build binaries for all architectures, and multi-arch docker images, but
+	# don't validate or publish anything
+	GITHUB_REPOSITORY=uselagoon goreleaser release --verbose --clean --snapshot
 
 .PHONY: lint
 lint:
