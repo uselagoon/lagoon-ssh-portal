@@ -46,11 +46,11 @@ func spin(ctx context.Context, w io.Writer) {
 		select {
 		case <-ctx.Done():
 			// https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences
-			fmt.Fprint(w, "\033[2K")
+			_, _ = fmt.Fprint(w, "\033[2K")
 			return
 		default:
 			for _, char := range charset {
-				fmt.Fprintf(w, "%s getting you a shell\r", char)
+				_, _ = fmt.Fprintf(w, "%s getting you a shell\r", char)
 				time.Sleep(framerate)
 			}
 		}
