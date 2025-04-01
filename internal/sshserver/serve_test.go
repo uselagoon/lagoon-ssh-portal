@@ -18,7 +18,7 @@ func TestDisableSHA1Kex(t *testing.T) {
 		t.Run(name, func(tt *testing.T) {
 			conf := disableSHA1Kex(nil)
 			assert.Equal(tt, tc.expect,
-				slices.Contains(conf.Config.KeyExchanges, tc.input), name)
+				slices.Contains(conf.KeyExchanges, tc.input), name)
 		})
 	}
 }

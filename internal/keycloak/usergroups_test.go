@@ -21,7 +21,7 @@ import (
 // appropriate group JSON data to exercise UserGroupIDRole.
 func newTestUGIDRoleServer(tt *testing.T) *httptest.Server {
 	// set up the map of group requests to responses
-	var reqRespMap map[string]string = map[string]string{
+	var reqRespMap = map[string]string{
 		"ee6d02d1-b14b-41dd-95b6-cb8c26b1a321/children": "testdata/usergroups_children0.json",
 		"7f22ce84-c0af-4ff4-afcd-288f0473deb5/children": "testdata/usergroups_children1.json",
 		"2e833d9b-39b7-4f25-b37f-cfb8765015ab/children": "testdata/usergroups_children2.json",

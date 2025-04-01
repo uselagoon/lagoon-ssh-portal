@@ -29,7 +29,7 @@ type NATSService interface {
 // This works around https://github.com/golang/go/issues/59593
 func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
 	c := gossh.ServerConfig{}
-	c.Config.KeyExchanges = []string{
+	c.KeyExchanges = []string{
 		"curve25519-sha256",
 		"curve25519-sha256@libssh.org",
 		"ecdh-sha2-nistp256",

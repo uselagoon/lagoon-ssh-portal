@@ -40,9 +40,12 @@ var (
 // linewiseCopy reads strings separated by \n from logStream, and writes them
 // with the given prefix and \n stripped to the logs channel. It returns when
 // ctx is cancelled or the logStream closes.
-func linewiseCopy(ctx context.Context, prefix string, logs chan<- string,
-	logStream io.ReadCloser) {
-	defer logStream.Close()
+func linewiseCopy(
+	ctx context.Context,
+	prefix string,
+	logs chan<- string,
+	logStream io.ReadCloser,
+) {
 	s := bufio.NewScanner(logStream)
 	for s.Scan() {
 		select {
@@ -99,6 +102,7 @@ func (c *Client) readLogs(ctx context.Context, requestID string,
 		}
 		egSend.Go(func() error {
 			defer c.logStreamIDs.Delete(cStatus.ContainerID)
+			defer logStream.Close() // nolint: errcheck
 			linewiseCopy(ctx, fmt.Sprintf("[pod/%s/%s]", p.Name, cStatus.Name), logs,
 				logStream)
 			// When a pod is terminating, the k8s API sometimes sends an event

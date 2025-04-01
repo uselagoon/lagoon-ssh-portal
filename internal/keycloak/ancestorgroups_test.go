@@ -19,7 +19,7 @@ import (
 // appropriate group JSON data to exercise AncestorGroups.
 func newTestAncestorGroupsServer(tt *testing.T) *httptest.Server {
 	// set up the map of group IDs to responses
-	var reqRespMap map[string]string = map[string]string{
+	var reqRespMap = map[string]string{
 		// tree 0
 		"078faf64-aa58-45cf-afb1-b585583feacf": "testdata/ancestorgroup_grandchild0.json",
 		"d2d90824-c807-4162-99cf-200e38affbe2": "testdata/ancestorgroup_child0.json",
