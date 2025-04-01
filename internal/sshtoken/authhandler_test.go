@@ -67,11 +67,11 @@ func TestPubKeyHandler(t *testing.T) {
 				tt, tc.keyFound, callback(sshContext, sshPublicKey), name)
 			if tc.keyFound {
 				assert.Equal(tt,
-					sshPermissions.Permissions.Extensions,
+					sshPermissions.Extensions,
 					map[string]string{sshtoken.UserUUIDKey: userUUID.String()},
 					name)
 			} else {
-				assert.Equal(tt, sshPermissions.Permissions.Extensions, nil, name)
+				assert.Equal(tt, sshPermissions.Extensions, nil, name)
 			}
 		})
 	}
