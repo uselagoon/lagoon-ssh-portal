@@ -49,7 +49,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't listen on port %d: %v", cmd.SSHServerPort, err)
 	}
-	defer l.Close()
+	defer l.Close() // nolint: errcheck
 	// get kubernetes client
 	c, err := k8s.NewClient(cmd.ConcurrentLogLimit, cmd.LogTimeLimit)
 	if err != nil {
