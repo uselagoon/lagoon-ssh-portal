@@ -42,7 +42,7 @@ func (c *Client) rawChildGroups(
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get groups: %v", err)
 	}
-	defer res.Body.Close() // nolint: errcheck
+	defer res.Body.Close()
 	if res.StatusCode > 299 {
 		body, _ := io.ReadAll(res.Body)
 		return nil, fmt.Errorf("bad child groups response for group ID %s: %d\n%s",

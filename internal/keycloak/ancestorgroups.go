@@ -34,7 +34,7 @@ func (c *Client) rawGroup(
 	if err != nil {
 		return nil, fmt.Errorf(`couldn't get groupID "%s": %v`, groupID.String(), err)
 	}
-	defer res.Body.Close() // nolint: errcheck
+	defer res.Body.Close()
 	if res.StatusCode > 299 {
 		body, _ := io.ReadAll(res.Body)
 		return nil, fmt.Errorf("bad group response: %d\n%s", res.StatusCode, body)

@@ -89,7 +89,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("couldn't listen on port %d: %v", cmd.SSHServerPort, err)
 	}
-	defer l.Close() // nolint: errcheck
+	defer l.Close()
 	// check for persistent host key arguments
 	var hostkeys [][]byte
 	for _, hk := range []string{cmd.HostKeyECDSA, cmd.HostKeyED25519,

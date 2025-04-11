@@ -102,7 +102,7 @@ func (c *Client) readLogs(ctx context.Context, requestID string,
 		}
 		egSend.Go(func() error {
 			defer c.logStreamIDs.Delete(cStatus.ContainerID)
-			defer logStream.Close() // nolint: errcheck
+			defer logStream.Close()
 			linewiseCopy(ctx, fmt.Sprintf("[pod/%s/%s]", p.Name, cStatus.Name), logs,
 				logStream)
 			// When a pod is terminating, the k8s API sometimes sends an event
