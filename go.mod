@@ -1,7 +1,8 @@
 module github.com/uselagoon/ssh-portal
 
-go 1.23.7
-toolchain go1.24.1
+go 1.24.0
+
+toolchain go1.24.2
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
