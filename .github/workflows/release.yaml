@@ -45,8 +45,6 @@ jobs:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set up environment
-      run: echo "GOVERSION=$(go version)" >> "$GITHUB_ENV"
     - uses: advanced-security/sbom-generator-action@6fe43abf522b2e7a19bc769aec1e6c848614b517 # v0.0.2
       id: sbom
       env:
