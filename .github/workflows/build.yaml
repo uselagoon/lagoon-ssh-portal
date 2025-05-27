@@ -23,7 +23,6 @@ jobs:
     - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
         go-version: stable
-    - run: echo "GOVERSION=$(go version)" >> "$GITHUB_ENV"
     - uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
       id: goreleaser
       with:
@@ -42,7 +41,6 @@ jobs:
       uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
       with:
         images: ghcr.io/${{ github.repository }}/${{ matrix.binary }}
-    - run: echo "GITHUB_REPOSITORY_NAME=$(basename ${{ github.repository }})" >> "$GITHUB_ENV"
     - name: Build and push ${{ matrix.binary }} container image
       if: github.actor != 'dependabot[bot]'
       uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
