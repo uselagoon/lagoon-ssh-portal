@@ -2,7 +2,6 @@ package keycloak_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -179,7 +178,7 @@ func TestAncestorGroups(t *testing.T) {
 			defer ts.Close()
 			// init keycloak client
 			k, err := keycloak.NewClient(
-				context.Background(),
+				tt.Context(),
 				slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 				ts.URL,
 				"auth-server",
@@ -192,7 +191,7 @@ func TestAncestorGroups(t *testing.T) {
 			// override internal HTTP client for testing
 			k.UseDefaultHTTPClient()
 			// perform testing
-			ancestorGroupIDs, err := k.AncestorGroups(context.Background(), tc.groupIDs)
+			ancestorGroupIDs, err := k.AncestorGroups(tt.Context(), tc.groupIDs)
 			assert.NoError(tt, err, name)
 			assert.Equal(tt, tc.ancestorGroupIDs, ancestorGroupIDs, name)
 		})

@@ -1,7 +1,6 @@
 package rbac_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -331,34 +330,33 @@ func TestUserCanSSHDefaultRBAC(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			ctx := context.Background()
 			// set up mocks
 			ctrl := gomock.NewController(tt)
 			defer ctrl.Finish()
 			kcService := NewMockKeycloakService(ctrl)
 			kcService.EXPECT().
-				UserRolesAndGroups(ctx, tc.userUUID).
+				UserRolesAndGroups(tt.Context(), tc.userUUID).
 				Return(tc.realmRoles, tc.userGroupPaths, nil).
 				Times(2)
 			ldbService := NewMockLagoonDBService(ctrl)
 			if !tc.realmRoleShortCircuit {
 				kcService.EXPECT().
-					UserGroupIDRole(ctx, tc.userGroupPaths).
+					UserGroupIDRole(tt.Context(), tc.userGroupPaths).
 					Return(tc.userGroupIDRole).
 					Times(2)
 				ldbService.EXPECT().
-					ProjectGroupIDs(ctx, tc.projectID).
+					ProjectGroupIDs(tt.Context(), tc.projectID).
 					Return(tc.projectGroupIDs, nil).
 					Times(2)
 				kcService.EXPECT().
-					AncestorGroups(ctx, tc.projectGroupIDs).
+					AncestorGroups(tt.Context(), tc.projectGroupIDs).
 					Return(tc.ancestorGroups, nil).
 					Times(2)
 			}
 			// test default permission engine
 			permDefault := rbac.NewPermission(kcService, ldbService)
 			ok, err := permDefault.UserCanSSHToEnvironment(
-				ctx,
+				tt.Context(),
 				log,
 				tc.userUUID,
 				tc.projectID,
@@ -377,7 +375,7 @@ func TestUserCanSSHDefaultRBAC(t *testing.T) {
 				rbac.BlockDeveloperSSH(),
 			)
 			ok, err = permBlockDev.UserCanSSHToEnvironment(
-				ctx,
+				tt.Context(),
 				log,
 				tc.userUUID,
 				tc.projectID,

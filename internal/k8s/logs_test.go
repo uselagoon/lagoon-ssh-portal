@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -29,13 +28,11 @@ func TestLinewiseCopy(t *testing.T) {
 			prefix: "test:",
 		},
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
 			out := make(chan string, 1)
 			in := io.NopCloser(strings.NewReader(tc.input))
-			go linewiseCopy(ctx, tc.prefix, out, in)
+			go linewiseCopy(tt.Context(), tc.prefix, out, in)
 			timer := time.NewTimer(500 * time.Millisecond)
 			var lines []string
 		loop:
@@ -131,10 +128,9 @@ func TestLogs(t *testing.T) {
 			// execute test
 			var buf bytes.Buffer
 			var eg errgroup.Group
-			ctx := context.Background()
 			for range tc.sessionCount {
 				eg.Go(func() error {
-					return c.Logs(ctx, testNS, testDeploy, testPod, tc.follow, 10, &buf)
+					return c.Logs(tt.Context(), testNS, testDeploy, testPod, tc.follow, 10, &buf)
 				})
 			}
 			// check results

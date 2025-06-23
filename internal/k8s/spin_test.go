@@ -22,7 +22,7 @@ func TestSpinAfter(t *testing.T) {
 		t.Run(name, func(tt *testing.T) {
 			var buf strings.Builder
 			// start the spinner with a given connect time
-			ctx, cancel := context.WithTimeout(context.Background(), tc.connectTime)
+			ctx, cancel := context.WithTimeout(tt.Context(), tc.connectTime)
 			wg := spinAfter(ctx, &buf, wait)
 			wg.Wait()
 			cancel()

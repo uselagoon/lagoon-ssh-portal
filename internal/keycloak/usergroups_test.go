@@ -2,7 +2,6 @@ package keycloak_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -196,7 +195,7 @@ func TestUserGroupIDRole(t *testing.T) {
 			defer ts.Close()
 			// init keycloak client
 			k, err := keycloak.NewClient(
-				context.Background(),
+				tt.Context(),
 				slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 				ts.URL,
 				"auth-server",
@@ -211,7 +210,7 @@ func TestUserGroupIDRole(t *testing.T) {
 			// override default huge pages
 			k.UsePageSize(5)
 			// perform testing
-			gidRoleMap := k.UserGroupIDRole(context.Background(), tc.userGroupPaths)
+			gidRoleMap := k.UserGroupIDRole(tt.Context(), tc.userGroupPaths)
 			assert.Equal(tt, tc.expect, gidRoleMap, name)
 		})
 	}

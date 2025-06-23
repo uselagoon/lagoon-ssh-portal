@@ -1,7 +1,6 @@
 package lagoondb_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -43,7 +42,7 @@ func TestLastUsed(t *testing.T) {
 				WillReturnResult(sqlmock.NewErrorResult(nil))
 			// execute expected database operations
 			db := lagoondb.NewClientFromDB(mockDB)
-			err = db.SSHKeyUsed(context.Background(), tc.fingerprint, tc.used)
+			err = db.SSHKeyUsed(tt.Context(), tc.fingerprint, tc.used)
 			if tc.expectError {
 				assert.Error(tt, err, name)
 			} else {
@@ -102,7 +101,7 @@ func TestProjectGroupIDs(t *testing.T) {
 				WillReturnError(tc.error)
 			// execute expected database operations
 			db := lagoondb.NewClientFromDB(mockDB)
-			_, err = db.ProjectGroupIDs(context.Background(), tc.projectID)
+			_, err = db.ProjectGroupIDs(tt.Context(), tc.projectID)
 			if tc.expectError {
 				assert.Error(tt, err, name)
 			} else {
