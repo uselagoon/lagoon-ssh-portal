@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
@@ -155,7 +154,7 @@ func TestIdledDeployLabels(t *testing.T) {
 			c := &Client{
 				clientset: fake.NewClientset(tc.deploys),
 			}
-			deploys, err := c.idledDeploys(context.Background(), testNS)
+			deploys, err := c.idledDeploys(tt.Context(), testNS)
 			assert.NoError(tt, err, name)
 			assert.Equal(tt, tc.expect, deployNames(deploys), name)
 		})

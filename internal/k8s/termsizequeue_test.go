@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
@@ -25,12 +24,10 @@ func TestTermSizeQueue(t *testing.T) {
 			},
 		},
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
 			in := make(chan ssh.Window, 1)
-			tsq := newTermSizeQueue(ctx, in)
+			tsq := newTermSizeQueue(tt.Context(), in)
 			in <- tc.input
 			output := tsq.Next()
 			assert.Equal(tt, tc.expect, *output, name)

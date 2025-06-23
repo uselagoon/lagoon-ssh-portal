@@ -2,7 +2,6 @@ package keycloak_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -250,7 +249,7 @@ func TestValidateTokenClaims(t *testing.T) {
 			// init keycloak client
 			// NOTE: client secret is empty because it isn't used in this test, but
 			// client ID is checked against azp in the token.
-			k, err := keycloak.NewClient(context.Background(), log, ts.URL,
+			k, err := keycloak.NewClient(tt.Context(), log, ts.URL,
 				"auth-server", "", 10, false)
 			if err != nil {
 				tt.Fatal(err)
