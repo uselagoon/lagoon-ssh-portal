@@ -18,7 +18,7 @@ import (
 
 var (
 	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshportalapi_requests_total",
+		Name: "sshportal_api_requests_total",
 		Help: "The total number of ssh-portal-api requests received",
 	})
 )
