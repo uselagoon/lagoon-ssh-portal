@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // rawGroup returns the raw JSON group representation of a single keycloak
@@ -18,6 +19,11 @@ func (c *Client) rawGroup(
 	ctx context.Context,
 	groupID uuid.UUID,
 ) ([]byte, error) {
+	// set up tracing
+	timer := prometheus.NewTimer(
+		keycloakRequestLatencyVec.WithLabelValues("rawGroup"))
+	defer timer.ObserveDuration()
+	// perform query
 	groupURL := *c.baseURL
 	groupURL.Path = path.Join(
 		c.baseURL.Path,

@@ -18,7 +18,7 @@ import (
 
 var (
 	requestsCounter = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sshportalapi_requests_total",
+		Name: "sshportal_api_requests_total",
 		Help: "The total number of ssh-portal-api requests received",
 	})
 )
@@ -42,10 +42,13 @@ func sshportal(
 		requestsCounter.Inc()
 		var query bus.SSHAccessQuery
 		if err := json.Unmarshal(msg.Data, &query); err != nil {
-			log.Warn("couldn't unmarshal query", slog.Any("query", msg.Data))
+			log.Warn("couldn't unmarshal query",
+				slog.Any("query", msg.Data),
+				slog.Any("error", err))
 			return
 		}
 		log := log.With(slog.Any("query", query))
+		log.Debug("received query")
 		// sanity check the query
 		if query.SSHFingerprint == "" || query.NamespaceName == "" {
 			log.Warn("malformed sshportal query")

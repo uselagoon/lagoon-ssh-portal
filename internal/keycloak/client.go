@@ -14,6 +14,8 @@ import (
 
 	"github.com/MicahParks/keyfunc/v2"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/cache"
 	oidcClient "github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -25,6 +27,14 @@ const (
 	pkgName = "github.com/uselagoon/ssh-portal/internal/keycloak"
 
 	httpTimeout = 8 * time.Second
+)
+
+var (
+	keycloakRequestLatencyVec = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "sshportal_keycloak_request_latency_seconds",
+		Help:    "SSH Portal API/Token Keycloak request latency",
+		Buckets: prometheus.ExponentialBuckets(0.05, 2, 10), // 50-25600 ms
+	}, []string{"function"})
 )
 
 // newHTTPClient constructs an HTTP client with a reasonable timeout using

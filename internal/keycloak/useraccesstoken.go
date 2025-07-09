@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/oauth2"
 )
@@ -19,6 +20,9 @@ func (c *Client) getUserToken(
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "getUserToken")
 	defer span.End()
+	timer := prometheus.NewTimer(
+		keycloakRequestLatencyVec.WithLabelValues("getUserToken"))
+	defer timer.ObserveDuration()
 	// get user token
 	userConfig := oauth2.Config{
 		ClientID:     c.clientID,

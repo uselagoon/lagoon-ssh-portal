@@ -10,11 +10,24 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 	"go.opentelemetry.io/otel"
 )
 
 const pkgName = "github.com/uselagoon/ssh-portal/internal/lagoondb"
+
+// ErrNoResult is returned by client methods if there is no result.
+var ErrNoResult = errors.New("no rows in result set")
+
+var (
+	dbRequestLatencyVec = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "sshportal_db_request_latency_seconds",
+		Help:    "SSH Portal API/Token Lagoon database request latency",
+		Buckets: prometheus.ExponentialBuckets(0.05, 2, 10), // 50-25600 ms
+	}, []string{"function"})
+)
 
 // Client is a Lagoon API-DB client
 type Client struct {
@@ -35,9 +48,6 @@ type Environment struct {
 type User struct {
 	UUID *uuid.UUID `db:"uuid"`
 }
-
-// ErrNoResult is returned by client methods if there is no result.
-var ErrNoResult = errors.New("no rows in result set")
 
 // NewClient returns a new Lagoon DB Client.
 func NewClient(ctx context.Context, dsn string) (*Client, error) {
@@ -63,6 +73,9 @@ func (c *Client) EnvironmentByNamespaceName(
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "EnvironmentByNamespaceName")
 	defer span.End()
+	timer := prometheus.NewTimer(
+		dbRequestLatencyVec.WithLabelValues("EnvironmentByNamespaceName"))
+	defer timer.ObserveDuration()
 	// run query
 	env := Environment{}
 	err := c.db.GetContext(ctx, &env,
@@ -94,6 +107,9 @@ func (c *Client) UserBySSHFingerprint(
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "UserBySSHFingerprint")
 	defer span.End()
+	timer := prometheus.NewTimer(
+		dbRequestLatencyVec.WithLabelValues("UserBySSHFingerprint"))
+	defer timer.ObserveDuration()
 	// run query
 	user := User{}
 	err := c.db.GetContext(ctx, &user,
@@ -121,6 +137,9 @@ func (c *Client) SSHEndpointByEnvironmentID(ctx context.Context,
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "SSHEndpointByEnvironmentID")
 	defer span.End()
+	timer := prometheus.NewTimer(
+		dbRequestLatencyVec.WithLabelValues("SSHEndpointByEnvironmentID"))
+	defer timer.ObserveDuration()
 	// run query
 	ssh := struct {
 		Host string `db:"ssh_host"`
@@ -154,6 +173,9 @@ func (c *Client) SSHKeyUsed(
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "SSHKeyUsed")
 	defer span.End()
+	timer := prometheus.NewTimer(
+		dbRequestLatencyVec.WithLabelValues("SSHKeyUsed"))
+	defer timer.ObserveDuration()
 	// run query
 	_, err := c.db.ExecContext(ctx,
 		`UPDATE ssh_key `+
@@ -177,6 +199,9 @@ func (c *Client) ProjectGroupIDs(
 	// set up tracing
 	ctx, span := otel.Tracer(pkgName).Start(ctx, "ProjectGroupIDs")
 	defer span.End()
+	timer := prometheus.NewTimer(
+		dbRequestLatencyVec.WithLabelValues("ProjectGroupIDs"))
+	defer timer.ObserveDuration()
 	// run query
 	var gids []uuid.UUID
 	err := c.db.SelectContext(ctx, &gids,

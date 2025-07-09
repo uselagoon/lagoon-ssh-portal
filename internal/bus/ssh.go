@@ -9,13 +9,21 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
 	// SubjectSSHAccessQuery defines the NATS subject for SSH access queries.
 	SubjectSSHAccessQuery = "lagoon.sshportal.api"
-	// NATS request timeout.
-	natsTimeout = 8 * time.Second
+)
+
+var (
+	natsRequestLatency = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "sshportal_nats_request_latency_seconds",
+		Help:    "SSH Portal NATS request latency",
+		Buckets: prometheus.ExponentialBuckets(0.05, 2, 10), // 50-25600 ms
+	})
 )
 
 // SSHAccessQuery defines the structure of an SSH access query.
@@ -40,7 +48,8 @@ func (q SSHAccessQuery) LogValue() slog.Value {
 
 // NATSClient is a NATS client.
 type NATSClient struct {
-	conn *nats.Conn
+	conn       *nats.Conn
+	reqTimeout time.Duration
 }
 
 // NewNATSClient constructs a new NATS client which connects to the given
@@ -51,6 +60,7 @@ type NATSClient struct {
 // must be called again to construct a new client.
 func NewNATSClient(
 	srvAddr string,
+	reqTimeout time.Duration,
 	log *slog.Logger,
 	cancel context.CancelFunc,
 ) (*NATSClient, error) {
@@ -73,7 +83,8 @@ func NewNATSClient(
 		return nil, fmt.Errorf("couldn't connect to NATS server: %v", err)
 	}
 	return &NATSClient{
-		conn: conn,
+		conn:       conn,
+		reqTimeout: reqTimeout,
 	}, nil
 }
 
@@ -91,6 +102,9 @@ func (c *NATSClient) KeyCanAccessEnvironment(
 	projectID,
 	environmentID int,
 ) (bool, error) {
+	// set up metrics
+	timer := prometheus.NewTimer(natsRequestLatency)
+	defer timer.ObserveDuration()
 	// construct ssh access query
 	queryData, err := json.Marshal(SSHAccessQuery{
 		SessionID:      sessionID,
@@ -106,7 +120,7 @@ func (c *NATSClient) KeyCanAccessEnvironment(
 	msg, err := c.conn.Request(
 		SubjectSSHAccessQuery,
 		queryData,
-		natsTimeout)
+		c.reqTimeout)
 	if err != nil {
 		return false, fmt.Errorf("couldn't make NATS request: %v", err)
 	}

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
 )
 
@@ -23,6 +24,11 @@ func (c *Client) rawChildGroups(
 	parentID uuid.UUID,
 	first int,
 ) ([]byte, error) {
+	// set up tracing
+	timer := prometheus.NewTimer(
+		keycloakRequestLatencyVec.WithLabelValues("rawChildGroups"))
+	defer timer.ObserveDuration()
+	// perform query
 	groupsURL := *c.baseURL
 	groupsURL.Path = path.Join(
 		c.baseURL.Path,
