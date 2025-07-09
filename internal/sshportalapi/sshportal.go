@@ -48,6 +48,7 @@ func sshportal(
 			return
 		}
 		log := log.With(slog.Any("query", query))
+		log.Debug("received query")
 		// sanity check the query
 		if query.SSHFingerprint == "" || query.NamespaceName == "" {
 			log.Warn("malformed sshportal query")
