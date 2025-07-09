@@ -42,7 +42,9 @@ func sshportal(
 		requestsCounter.Inc()
 		var query bus.SSHAccessQuery
 		if err := json.Unmarshal(msg.Data, &query); err != nil {
-			log.Warn("couldn't unmarshal query", slog.Any("query", msg.Data))
+			log.Warn("couldn't unmarshal query",
+				slog.Any("query", msg.Data),
+				slog.Any("error", err))
 			return
 		}
 		log := log.With(slog.Any("query", query))
