@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // defaultPageSize is the default size of the page requested when scrolling
@@ -28,6 +29,11 @@ type Group struct {
 
 // rawGroups returns the raw JSON group representation of all top-level groups.
 func (c *Client) rawGroups(ctx context.Context, first int) ([]byte, error) {
+	// set up tracing
+	timer := prometheus.NewTimer(
+		keycloakRequestLatencyVec.WithLabelValues("rawGroups"))
+	defer timer.ObserveDuration()
+	// perform query
 	groupsURL := *c.baseURL
 	groupsURL.Path = path.Join(c.baseURL.Path,
 		"/auth/admin/realms/lagoon/groups")

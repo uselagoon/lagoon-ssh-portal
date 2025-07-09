@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/oauth2"
 )
@@ -24,6 +25,10 @@ func (c *Client) UserRolesAndGroups(
 	if err := c.limiter.Wait(ctx); err != nil {
 		return nil, nil, fmt.Errorf("couldn't wait for limiter: %v", err)
 	}
+	// time keycloak query
+	timer := prometheus.NewTimer(
+		keycloakRequestLatencyVec.WithLabelValues("UserRolesAndGroups"))
+	defer timer.ObserveDuration()
 	// get user token
 	userConfig := oauth2.Config{
 		ClientID:     c.clientID,
