@@ -31,6 +31,7 @@ type ServeCmd struct {
 	Banner             string        `kong:"env='BANNER',help='Text sent to remote users before authentication'"`
 	ConcurrentLogLimit uint          `kong:"default='32',env='CONCURRENT_LOG_LIMIT',help='Maximum number of concurrent log sessions'"`
 	LogTimeLimit       time.Duration `kong:"default='4h',env='LOG_TIME_LIMIT',help='Maximum lifetime of each logs session'"`
+	NATSRequestTimeout time.Duration `kong:"hidden,default='8s',env='NATS_REQUEST_TIMEOUT',help='Timeout value for individual NATS requests. This is a low-level implementation detail that you should never touch unless something else is broken.'"`
 }
 
 // Run the serve command to handle SSH connection requests.
@@ -39,7 +40,7 @@ func (cmd *ServeCmd) Run(log *slog.Logger) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer cancel()
 	// get nats client
-	nc, err := bus.NewNATSClient(cmd.NATSServer, log, cancel)
+	nc, err := bus.NewNATSClient(cmd.NATSServer, cmd.NATSRequestTimeout, log, cancel)
 	if err != nil {
 		return fmt.Errorf("couldn't get nats client: %v", err)
 	}
