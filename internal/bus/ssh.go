@@ -9,11 +9,21 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
 	// SubjectSSHAccessQuery defines the NATS subject for SSH access queries.
 	SubjectSSHAccessQuery = "lagoon.sshportal.api"
+)
+
+var (
+	natsRequestLatency = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "sshportal_nats_request_latency_seconds",
+		Help:    "SSH Portal NATS request latency",
+		Buckets: prometheus.ExponentialBuckets(0.05, 2, 10), // 50-25600 ms
+	})
 )
 
 // SSHAccessQuery defines the structure of an SSH access query.
@@ -92,6 +102,9 @@ func (c *NATSClient) KeyCanAccessEnvironment(
 	projectID,
 	environmentID int,
 ) (bool, error) {
+	// set up metrics
+	timer := prometheus.NewTimer(natsRequestLatency)
+	defer timer.ObserveDuration()
 	// construct ssh access query
 	queryData, err := json.Marshal(SSHAccessQuery{
 		SessionID:      sessionID,
