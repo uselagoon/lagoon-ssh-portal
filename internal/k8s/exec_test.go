@@ -5,6 +5,7 @@ import (
 
 	"github.com/alecthomas/assert/v2"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -157,6 +158,186 @@ func TestIdledDeployLabels(t *testing.T) {
 			deploys, err := c.idledDeploys(tt.Context(), testNS)
 			assert.NoError(tt, err, name)
 			assert.Equal(tt, tc.expect, deployNames(deploys), name)
+		})
+	}
+}
+
+func TestHasRunningPod(t *testing.T) {
+	testNS := "testns"
+	matchLabels := map[string]string{"app": "myapp"}
+	testDeploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testDeploy",
+			Namespace: testNS,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabels,
+			},
+		},
+	}
+	var testCases = map[string]struct {
+		pods                 *corev1.PodList
+		expectHasRunningPods bool
+	}{
+		"one container in Succeeded state": {
+			pods: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-0",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Succeeded",
+						},
+					},
+				},
+			},
+		},
+		"one container in Running state": {
+			pods: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-0",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+				},
+			},
+			expectHasRunningPods: true,
+		},
+		"multiple containers Succeeded first": {
+			pods: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-0",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Succeeded",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-1",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-2",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+				},
+			},
+			expectHasRunningPods: true,
+		},
+		"multiple containers Succeeded middle": {
+			pods: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-0",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-1",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Succeeded",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-2",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+				},
+			},
+			expectHasRunningPods: true,
+		},
+		"multiple containers Succeeded last": {
+			pods: &corev1.PodList{
+				Items: []corev1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-0",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-1",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Running",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-pod-2",
+							Namespace: testNS,
+							Labels:    matchLabels,
+						},
+						Status: corev1.PodStatus{
+							Phase: "Succeeded",
+						},
+					},
+				},
+			},
+			expectHasRunningPods: true,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(tt *testing.T) {
+			c := &Client{
+				clientset: fake.NewClientset(testDeploy, tc.pods),
+			}
+			result, err :=
+				c.hasRunningPod(tt.Context(), testNS, testDeploy.Name)(tt.Context())
+			assert.NoError(tt, err, name)
+			if tc.expectHasRunningPods {
+				assert.True(tt, result, name)
+			} else {
+				assert.False(tt, result, name)
+			}
 		})
 	}
 }
