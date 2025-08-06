@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"time"
 
@@ -35,8 +36,8 @@ var (
 	}
 )
 
-// podContainer returns the first pod and first container inside that pod for
-// the given namespace and deployment.
+// podContainer returns the first running pod and first container inside that
+// pod for the given namespace and deployment.
 func (c *Client) podContainer(ctx context.Context, namespace,
 	deployment string) (string, string, error) {
 	d, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, deployment,
@@ -50,8 +51,11 @@ func (c *Client) podContainer(ctx context.Context, namespace,
 	if err != nil {
 		return "", "", err
 	}
+	pods.Items = slices.DeleteFunc(pods.Items, func(pod corev1.Pod) bool {
+		return pod.Status.Phase != "Running"
+	})
 	if len(pods.Items) == 0 {
-		return "", "", fmt.Errorf("no pods for deployment %s", deployment)
+		return "", "", fmt.Errorf("no running pods for deployment %s", deployment)
 	}
 	if len(pods.Items[0].Spec.Containers) == 0 {
 		return "", "", fmt.Errorf("no containers for pod %s in deployment %s",
@@ -74,10 +78,9 @@ func (c *Client) hasRunningPod(ctx context.Context,
 		if err != nil {
 			return false, err
 		}
-		if len(pods.Items) == 0 {
-			return false, nil
-		}
-		return pods.Items[0].Status.Phase == "Running", nil
+		return slices.ContainsFunc(pods.Items, func(pod corev1.Pod) bool {
+			return pod.Status.Phase == "Running"
+		}), nil
 	}
 }
 
