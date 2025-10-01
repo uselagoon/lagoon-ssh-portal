@@ -13,10 +13,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// defaultPageSize is the default size of the page requested when scrolling
-// through group results from Keycloak.
-const defaultPageSize = 1000
-
 // Group represents a Keycloak Group. It holds the fields required when getting
 // a list of groups from keycloak.
 type Group struct {

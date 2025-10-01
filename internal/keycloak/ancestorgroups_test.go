@@ -184,6 +184,7 @@ func TestAncestorGroups(t *testing.T) {
 				"auth-server",
 				"",
 				10,
+				400,
 				false)
 			if err != nil {
 				tt.Fatal(err)
