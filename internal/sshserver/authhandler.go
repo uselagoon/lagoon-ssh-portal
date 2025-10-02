@@ -53,6 +53,7 @@ func pubKeyHandler(
 			return false
 		}
 		fingerprint := gossh.FingerprintSHA256(key)
+		log = log.With(slog.String("fingerprint", fingerprint))
 		ok, err := nc.KeyCanAccessEnvironment(
 			ctx.SessionID(),
 			fingerprint,
@@ -66,12 +67,10 @@ func pubKeyHandler(
 		}
 		// handle response
 		if !ok {
-			log.Debug("SSH access not authorized",
-				slog.String("fingerprint", fingerprint))
+			log.Debug("SSH access not authorized")
 			return false
 		}
-		log.Debug("SSH access authorized",
-			slog.String("fingerprint", fingerprint))
+		log.Debug("SSH access authorized")
 		permissionsMarshal(ctx, eid, pid, ename, pname)
 		return true
 	}
