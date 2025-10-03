@@ -38,6 +38,7 @@ func (c *Client) rawGroups(ctx context.Context, first int) ([]byte, error) {
 		return nil, fmt.Errorf("couldn't construct groups request: %v", err)
 	}
 	q := req.URL.Query()
+	q.Add("subGroupsCount", "false")
 	q.Add("briefRepresentation", "true")
 	q.Add("first", strconv.Itoa(first))
 	q.Add("max", strconv.Itoa(c.pageSize))
