@@ -83,7 +83,8 @@ func NewClient(
 	keycloakURL,
 	clientID,
 	clientSecret string,
-	rateLimit int,
+	rateLimit,
+	pageSize int,
 	insecureTLS bool,
 ) (*Client, error) {
 	// discover OIDC config
@@ -116,7 +117,7 @@ func NewClient(
 		oidcConfig:   oidcConfig,
 		limiter:      rate.NewLimiter(rate.Limit(rateLimit), rateLimit),
 		httpClient:   newHTTPClient(ctx, clientID, clientSecret, oidcConfig.TokenEndpoint),
-		pageSize:     defaultPageSize,
+		pageSize:     pageSize,
 
 		topLevelGroupNameIDCache: cache.NewAny[map[string]uuid.UUID](),
 		groupIDGroupCache:        cache.NewMap[uuid.UUID, Group](),
