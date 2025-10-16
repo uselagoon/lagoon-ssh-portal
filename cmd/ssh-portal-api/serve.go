@@ -32,7 +32,7 @@ type ServeCmd struct {
 	KeycloakClientID     string `kong:"default='service-api',env='KEYCLOAK_SERVICE_API_CLIENT_ID',help='Keycloak OAuth2 Client ID'"`
 	KeycloakClientSecret string `kong:"required,env='KEYCLOAK_SERVICE_API_CLIENT_SECRET',help='Keycloak OAuth2 Client Secret'"`
 	KeycloakRateLimit    int    `kong:"default=10,env='KEYCLOAK_RATE_LIMIT',help='Keycloak API Rate Limit (requests/second)'"`
-	KeycloakPageSize     int    `kong:"default=400,env='KEYCLOAK_PAGE_SIZE',help='Keycloak API Page Size'"`
+	KeycloakPageSize     int    `kong:"default=1000,env='KEYCLOAK_PAGE_SIZE',help='Keycloak API Page Size'"`
 	NATSURL              string `kong:"required,env='NATS_URL',help='NATS server URL (nats://... or tls://...)'"`
 }
 
