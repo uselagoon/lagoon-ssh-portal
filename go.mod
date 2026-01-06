@@ -88,3 +88,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace github.com/alecthomas/repr => github.com/smlx/repr v0.0.0-20260105153858-60aa893da7a0
