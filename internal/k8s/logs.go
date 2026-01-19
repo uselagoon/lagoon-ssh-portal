@@ -255,9 +255,7 @@ func (c *Client) Logs(
 	// for this function to read log lines from
 	logs := make(chan string, 4)
 	// start a goroutine reading from the logs channel and writing back to stdio
-	wgRecv.Add(1)
-	go func() {
-		defer wgRecv.Done()
+	wgRecv.Go(func() {
 		for {
 			select {
 			case msg := <-logs:
@@ -270,7 +268,7 @@ func (c *Client) Logs(
 				return // context done - client went away or error within Logs()
 			}
 		}
-	}()
+	})
 	if follow {
 		// If following the logs, start a goroutine which watches for new (and
 		// existing) pods in the deployment and starts streaming logs from them.
