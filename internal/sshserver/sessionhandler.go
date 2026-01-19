@@ -11,7 +11,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/uselagoon/ssh-portal/internal/k8s"
 	gossh "golang.org/x/crypto/ssh"
 	"k8s.io/utils/exec"
 )
@@ -21,7 +20,24 @@ type K8SAPIService interface {
 	Exec(context.Context, string, string, string, []string, io.ReadWriter,
 		io.Writer, bool, <-chan ssh.Window) error
 	FindDeployment(context.Context, string, string) (string, error)
-	Logs(context.Context, string, string, string, bool, int64, io.ReadWriter) error
+	LagoonContainerLogs(
+		ctx context.Context,
+		namespace,
+		deployment,
+		container string,
+		follow bool,
+		tailLines int64,
+		stdio io.ReadWriter,
+	) error
+	LagoonSystemLogs(
+		ctx context.Context,
+		namespace,
+		lagoonSystem,
+		jobName string,
+		follow bool,
+		tailLines int64,
+		stdio io.ReadWriter,
+	) error
 	NamespaceDetails(context.Context, string) (int, int, string, string, error)
 }
 
@@ -34,11 +50,32 @@ var (
 		Name: "sshportal_exec_sessions",
 		Help: "Current number of ssh-portal exec sessions",
 	})
-	logsSessions = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "sshportal_logs_sessions",
-		Help: "Current number of ssh-portal logs sessions",
+	lagoonContainerLogsSessions = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "sshportal_lagoon_container_logs_sessions",
+		Help: "Current number of ssh-portal lagoon container logs sessions",
+	})
+	lagoonSystemLogsSessions = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "sshportal_lagoon_system_logs_sessions",
+		Help: "Current number of ssh-portal lagoon system logs sessions",
 	})
 )
+
+// logAccessNotEnabled notifies the client that log access is not enabled and
+// returns an error to the client.
+func logAccessNotEnabled(s ssh.Session, log *slog.Logger) {
+	log.Debug("log access is not enabled")
+	_, err := fmt.Fprintf(s.Stderr(), "log access is not enabled. SID: %s\r\n",
+		s.Context().SessionID())
+	if err != nil {
+		log.Debug("couldn't send error to client", slog.Any("error", err))
+	}
+	// Send a non-zero exit code to the client on internal logs error.
+	// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
+	// differentiate this error.
+	if err = s.Exit(253); err != nil {
+		log.Warn("couldn't send exit code to client", slog.Any("error", err))
+	}
+}
 
 // permissionsUnmarshal extracts details of the Lagoon environment identified
 // in the pubKeyHandler which were stored in the Extensions field of the ssh
@@ -117,140 +154,137 @@ func sessionHandler(
 		ctx := s.Context()
 		log := log.With(slog.String("sessionID", ctx.SessionID()))
 		log.Debug("starting session",
+			// s.Command() returns a slice of strings split on space and parsed as
+			// posix shell arguments:
+			// https://github.com/gliderlabs/ssh/blob/
+			//  a8ecd3ed244fb77c863c0cf30ccdcca44436974a/session.go#L201-L204
 			slog.Any("command", s.Command()),
+			// s.RawCommand() returns a string containing the arguments supplied to
+			// the ssh client joined by a single space:
+			// https://github.com/openssh/openssh-portable/blob/
+			//	fe4305c37ffe53540a67586854e25f05cf615849/ssh.c#L1179-L1184
 			slog.String("rawCommand", s.RawCommand()),
 			slog.String("subsystem", s.Subsystem()),
 		)
-		// parse the command line arguments to extract any service or container args
-		//
-		// NOTE:
-		//
-		// * s.RawCommand() returns a string containing the arguments supplied to
-		//   the ssh client joined by a single space:
-		// 	 https://github.com/openssh/openssh-portable/blob/
-		// 		fe4305c37ffe53540a67586854e25f05cf615849/ssh.c#L1179-L1184
-		// * s.Command() returns a slice of strings split on space and parsed as
-		//   posix shell arguments:
-		// 	 https://github.com/openssh/openssh-portable/blob/
-		// 		fe4305c37ffe53540a67586854e25f05cf615849/ssh.c#L1179-L1184
-		service, container, logs, rawCmd :=
-			parseConnectionParams(s.Command(), s.RawCommand())
-		// validate the service and container
-		if err := k8s.ValidateLabelValue(service); err != nil {
-			log.Debug("invalid service name",
-				slog.String("service", service),
-				slog.Any("error", err))
-			_, err = fmt.Fprintf(s.Stderr(), "invalid service name %s. SID: %s\r\n",
-				service, ctx.SessionID())
-			if err != nil {
-				log.Debug("couldn't write to session stream", slog.Any("error", err))
-			}
-			return
-		}
-		if err := k8s.ValidateLabelValue(container); err != nil {
-			log.Debug("invalid container name",
-				slog.String("container", container),
-				slog.Any("error", err))
-			_, err = fmt.Fprintf(s.Stderr(), "invalid container name %s. SID: %s\r\n",
-				container, ctx.SessionID())
-			if err != nil {
-				log.Debug("couldn't write to session stream", slog.Any("error", err))
-			}
-			return
-		}
-		// find the deployment name based on the given service name
-		deployment, err := c.FindDeployment(ctx, s.User(), service)
-		if err != nil {
-			log.Debug("couldn't find deployment for service",
-				slog.String("service", service),
-				slog.Any("error", err))
-			_, err = fmt.Fprintf(s.Stderr(), "unknown service %s. SID: %s\r\n",
-				service, ctx.SessionID())
-			if err != nil {
-				log.Debug("couldn't write to session stream", slog.Any("error", err))
-			}
-			return
-		}
-		// extract info passed through the context by the authhandler
-		eid, pid, ename, pname, err := permissionsUnmarshal(ctx)
-		if err != nil {
-			log.Error("couldn't unmarshal values from permissions",
-				slog.Any("error", err))
-			_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
-				ctx.SessionID())
-			if err != nil {
-				log.Debug("couldn't write to session stream", slog.Any("error", err))
-			}
-			return
-		}
-		if len(logs) != 0 {
+		// parse command line arguments to determine the session type
+		switch parseSessionType(s.Command()) {
+		case ExecSession:
+			execSession(log, c, s, sftp)
+		case LagoonContainerLogsSession:
 			if !logAccessEnabled {
-				log.Debug("logs access is not enabled",
-					slog.String("logsArgument", logs))
-				_, err = fmt.Fprintf(s.Stderr(), "logs access is not enabled. SID: %s\r\n",
-					ctx.SessionID())
-				if err != nil {
-					log.Warn("couldn't send error to client", slog.Any("error", err))
-				}
-				// Send a non-zero exit code to the client on internal logs error.
-				// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
-				// differentiate this error.
-				if err = s.Exit(253); err != nil {
-					log.Warn("couldn't send exit code to client", slog.Any("error", err))
-				}
+				logAccessNotEnabled(s, log)
 				return
 			}
-			follow, tailLines, err := parseLogsArg(service, logs, rawCmd)
+			lagoonContainerLogsSession(log, c, s)
+		case LagoonSystemLogsSession:
+			if !logAccessEnabled {
+				logAccessNotEnabled(s, log)
+				return
+			}
+			lagoonSystemLogsSession(log, c, s)
+		default:
+			log.Error("couldn't determine session type",
+				slog.Any("command", s.Command()))
+			_, err := fmt.Fprintf(s.Stderr(), "invalid session type. SID: %s\r\n",
+				s.Context().SessionID())
 			if err != nil {
-				log.Debug("couldn't parse logs argument",
-					slog.String("logsArgument", logs),
-					slog.Any("error", err))
-				_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
-					ctx.SessionID())
-				if err != nil {
-					log.Warn("couldn't send error to client", slog.Any("error", err))
-				}
-				// Send a non-zero exit code to the client on internal logs error.
-				// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
-				// differentiate this error.
-				if err = s.Exit(253); err != nil {
-					log.Warn("couldn't send exit code to client", slog.Any("error", err))
-				}
-				return
+				log.Debug("couldn't send error to client", slog.Any("error", err))
 			}
-			log.Info("sending logs to SSH client",
-				slog.Int("environmentID", eid),
-				slog.Int("projectID", pid),
-				slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
-				slog.String("container", container),
-				slog.String("deployment", deployment),
-				slog.String("environmentName", ename),
-				slog.String("namespace", s.User()),
-				slog.String("projectName", pname),
-				slog.Bool("follow", follow),
-				slog.Int64("tailLines", tailLines),
-			)
-			doLogs(ctx, log, s, deployment, container, follow, tailLines, c)
 			return
 		}
-		// handle sftp and sh fallback
-		cmd := getSSHIntent(sftp, rawCmd)
-		// check if a pty was requested, and get the window size channel
-		_, winch, pty := s.Pty()
-		log.Info("executing SSH command",
-			slog.Bool("pty", pty),
-			slog.Int("environmentID", eid),
-			slog.Int("projectID", pid),
-			slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
-			slog.String("container", container),
-			slog.String("deployment", deployment),
-			slog.String("environmentName", ename),
-			slog.String("namespace", s.User()),
-			slog.String("projectName", pname),
-			slog.Any("command", cmd),
-		)
-		doExec(ctx, log, s, deployment, container, cmd, c, pty, winch)
 	}
+}
+
+// execSession handles a command execution session.
+func execSession(
+	log *slog.Logger,
+	c K8SAPIService,
+	s ssh.Session,
+	sftp bool,
+) {
+	ctx := s.Context()
+	service, container, rawCmd, err :=
+		parseExecSessionParams(s.Command(), s.RawCommand())
+	if err != nil {
+		log.Debug("couldn't parse exec session parameters",
+			slog.Any("command", s.Command()),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "invalid exec session parameters. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	// find the deployment name based on the given service name
+	deployment, err := c.FindDeployment(ctx, s.User(), service)
+	if err != nil {
+		log.Debug("couldn't find deployment for service",
+			slog.String("service", service),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(s.Stderr(), "unknown service %s. SID: %s\r\n",
+			service, ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	// extract info passed through the context by the authhandler
+	eid, pid, ename, pname, err := permissionsUnmarshal(ctx)
+	if err != nil {
+		log.Error("couldn't unmarshal permissions", slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "error executing command. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	// handle sftp and sh fallback
+	cmd := getSSHIntent(sftp, rawCmd)
+	// check if a pty was requested, and get the window size channel
+	_, winch, pty := s.Pty()
+	log.Info("executing SSH command",
+		slog.Int("environmentID", eid),
+		slog.Int("projectID", pid),
+		slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
+		slog.String("container", container),
+		slog.String("deployment", deployment),
+		slog.String("environmentName", ename),
+		slog.String("namespace", s.User()),
+		slog.String("projectName", pname),
+		slog.Bool("pty", pty),
+		slog.Any("command", cmd),
+	)
+	// update metrics
+	execSessions.Inc()
+	defer execSessions.Dec()
+	// execute command
+	err = c.Exec(
+		ctx, s.User(), deployment, container, cmd, s, s.Stderr(), pty, winch)
+	if err != nil {
+		if exitErr, ok := err.(exec.ExitError); ok {
+			log.Debug("command execution error",
+				slog.Int("exitStatus", exitErr.ExitStatus()),
+				slog.Any("error", err))
+			if err = s.Exit(exitErr.ExitStatus()); err != nil {
+				log.Warn("couldn't send exit code to client", slog.Any("error", err))
+			}
+		} else {
+			log.Warn("couldn't execute command", slog.Any("error", err))
+			_, err = fmt.Fprintf(
+				s.Stderr(), "error executing command. SID: %s\r\n", ctx.SessionID())
+			if err != nil {
+				log.Debug("couldn't send error to client", slog.Any("error", err))
+			}
+			// Send a non-zero exit code to the client on internal exec error.
+			// OpenSSH uses 255 for this, so use 254 to differentiate the error.
+			if err = s.Exit(254); err != nil {
+				log.Warn("couldn't send exit code to client", slog.Any("error", err))
+			}
+		}
+	}
+	log.Debug("finished command exec")
 }
 
 // startClientKeepalive sends a keepalive request to the client via the channel
@@ -278,11 +312,78 @@ func startClientKeepalive(ctx context.Context, cancel context.CancelFunc,
 	}
 }
 
-func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
-	container string, follow bool, tailLines int64, c K8SAPIService) {
+// lagoonContainerLogsSession handles a log access session.
+func lagoonContainerLogsSession(
+	log *slog.Logger,
+	c K8SAPIService,
+	s ssh.Session,
+) {
+	ctx := s.Context()
+	service, container, logs, err := parseContainerLogsSessionParams(s.Command())
+	if err != nil {
+		log.Debug("couldn't parse container logs session parameters",
+			slog.Any("command", s.Command()),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(),
+			"invalid container logs session parameters. SID: %s\r\n",
+			ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	follow, tailLines, err := parseLogsArg(logs)
+	if err != nil {
+		log.Debug("couldn't parse container logs argument",
+			slog.String("logsArgument", logs),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "invalid container logs argument. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	// find the deployment name based on the given service name
+	deployment, err := c.FindDeployment(ctx, s.User(), service)
+	if err != nil {
+		log.Debug("couldn't find deployment for service",
+			slog.String("service", service),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(s.Stderr(), "unknown service %s. SID: %s\r\n",
+			service, ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	// extract info passed through the context by the authhandler
+	eid, pid, ename, pname, err := permissionsUnmarshal(ctx)
+	if err != nil {
+		log.Error("couldn't unmarshal permissions", slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "error executing command. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	log.Info("sending container logs to SSH client",
+		slog.Int("environmentID", eid),
+		slog.Int("projectID", pid),
+		slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
+		slog.String("container", container),
+		slog.String("deployment", deployment),
+		slog.String("environmentName", ename),
+		slog.String("namespace", s.User()),
+		slog.String("projectName", pname),
+		slog.Bool("follow", follow),
+		slog.Int64("tailLines", tailLines),
+	)
 	// update metrics
-	logsSessions.Inc()
-	defer logsSessions.Dec()
+	lagoonContainerLogsSessions.Inc()
+	defer lagoonContainerLogsSessions.Dec()
 	// Wrap the ssh.Context so we can cancel goroutines started from this
 	// function without affecting the SSH session.
 	childCtx, cancel := context.WithCancel(ctx)
@@ -296,13 +397,14 @@ func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
 	// ping to the client. If the keepalive fails, close the channel and cancel
 	// the childCtx.
 	go startClientKeepalive(childCtx, cancel, log, s)
-	err := c.Logs(childCtx, s.User(), deployment, container, follow, tailLines, s)
+	err = c.LagoonContainerLogs(
+		childCtx, s.User(), deployment, container, follow, tailLines, s)
 	if err != nil {
-		log.Warn("couldn't send logs", slog.Any("error", err))
-		_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
-			ctx.SessionID())
+		log.Warn("log stream interrupted", slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "log stream interrupted. SID: %s\r\n", ctx.SessionID())
 		if err != nil {
-			log.Warn("couldn't send error to client", slog.Any("error", err))
+			log.Debug("couldn't send error to client", slog.Any("error", err))
 		}
 		// Send a non-zero exit code to the client on internal logs error.
 		// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
@@ -311,36 +413,96 @@ func doLogs(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
 			log.Warn("couldn't send exit code to client", slog.Any("error", err))
 		}
 	}
-	log.Debug("finished command logs")
+	log.Debug("finished command container logs")
 }
 
-func doExec(ctx ssh.Context, log *slog.Logger, s ssh.Session, deployment,
-	container string, cmd []string, c K8SAPIService, pty bool,
-	winch <-chan ssh.Window) {
-	// update metrics
-	execSessions.Inc()
-	defer execSessions.Dec()
-	err := c.Exec(ctx, s.User(), deployment, container, cmd, s,
-		s.Stderr(), pty, winch)
+func lagoonSystemLogsSession(
+	log *slog.Logger,
+	c K8SAPIService,
+	s ssh.Session,
+) {
+	ctx := s.Context()
+	lagoonSystem, name, logs, err :=
+		parseSystemLogsSessionParams(s.Command())
 	if err != nil {
-		if exitErr, ok := err.(exec.ExitError); ok {
-			log.Debug("couldn't execute command", slog.Any("error", err))
-			if err = s.Exit(exitErr.ExitStatus()); err != nil {
-				log.Warn("couldn't send exit code to client", slog.Any("error", err))
-			}
-		} else {
-			log.Warn("couldn't execute command", slog.Any("error", err))
-			_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
-				ctx.SessionID())
-			if err != nil {
-				log.Warn("couldn't send error to client", slog.Any("error", err))
-			}
-			// Send a non-zero exit code to the client on internal exec error.
-			// OpenSSH uses 255 for this, so use 254 to differentiate the error.
-			if err = s.Exit(254); err != nil {
-				log.Warn("couldn't send exit code to client", slog.Any("error", err))
-			}
+		log.Debug("couldn't parse system logs session parameters",
+			slog.Any("command", s.Command()),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(),
+			"invalid system logs session parameters. SID: %s\r\n",
+			ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	follow, tailLines, err := parseLogsArg(logs)
+	if err != nil {
+		log.Debug("couldn't parse system logs argument",
+			slog.String("logsArgument", logs),
+			slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "invalid system logs argument. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	// extract info passed through the context by the authhandler
+	eid, pid, ename, pname, err := permissionsUnmarshal(ctx)
+	if err != nil {
+		log.Error("couldn't unmarshal permissions", slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "error executing command. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		return
+	}
+	log.Info("sending system logs to SSH client",
+		slog.Int("environmentID", eid),
+		slog.Int("projectID", pid),
+		slog.String("SSHFingerprint", gossh.FingerprintSHA256(s.PublicKey())),
+		slog.String("lagoonSystem", lagoonSystem.String()),
+		slog.String("name", name),
+		slog.String("environmentName", ename),
+		slog.String("namespace", s.User()),
+		slog.String("projectName", pname),
+		slog.Bool("follow", follow),
+		slog.Int64("tailLines", tailLines),
+	)
+	// update metrics
+	lagoonSystemLogsSessions.Inc()
+	defer lagoonSystemLogsSessions.Dec()
+	// Wrap the ssh.Context so we can cancel goroutines started from this
+	// function without affecting the SSH session.
+	childCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	// In a multiplexed connection (multiple SSH channels to the single TCP
+	// connection), if the client disconnects from the channel the session
+	// context will not be cancelled (because the TCP connection is still up),
+	// and k8s.Logs() will hang.
+	//
+	// To work around this problem, start a goroutine to send a regular keepalive
+	// ping to the client. If the keepalive fails, close the channel and cancel
+	// the childCtx.
+	go startClientKeepalive(childCtx, cancel, log, s)
+	err = c.LagoonSystemLogs(
+		childCtx, s.User(), lagoonSystem.String(), name, follow, tailLines, s)
+	if err != nil {
+		log.Warn("log stream interrupted", slog.Any("error", err))
+		_, err = fmt.Fprintf(
+			s.Stderr(), "log stream interrupted. SID: %s\r\n", ctx.SessionID())
+		if err != nil {
+			log.Debug("couldn't send error to client", slog.Any("error", err))
+		}
+		// Send a non-zero exit code to the client on internal logs error.
+		// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
+		// differentiate this error.
+		if err = s.Exit(253); err != nil {
+			log.Warn("couldn't send exit code to client", slog.Any("error", err))
 		}
 	}
-	log.Debug("finished command exec")
+	log.Debug("finished command system logs")
 }
