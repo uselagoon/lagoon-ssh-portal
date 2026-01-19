@@ -187,7 +187,7 @@ func sessionHandler(
 			if !logAccessEnabled {
 				log.Debug("logs access is not enabled",
 					slog.String("logsArgument", logs))
-				_, err = fmt.Fprintf(s.Stderr(), "error executing command. SID: %s\r\n",
+				_, err = fmt.Fprintf(s.Stderr(), "logs access is not enabled. SID: %s\r\n",
 					ctx.SessionID())
 				if err != nil {
 					log.Warn("couldn't send error to client", slog.Any("error", err))
