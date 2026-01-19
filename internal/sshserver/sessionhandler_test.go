@@ -1,11 +1,13 @@
 package sshserver_test
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"log/slog"
 	"os"
 	"testing"
 
+	"github.com/alecthomas/assert/v2"
 	"github.com/anmitsu/go-shlex"
 	"github.com/gliderlabs/ssh"
 	"github.com/uselagoon/ssh-portal/internal/sshserver"
@@ -126,6 +128,16 @@ func TestLogs(t *testing.T) {
 			follow:           false,
 			taillines:        10,
 		},
+		"nginx logs administratively disabled": {
+			user:             "project-test",
+			deployment:       "nginx",
+			rawCommand:       "service=nginx logs=tailLines=10",
+			sftp:             false,
+			logAccessEnabled: false,
+			pty:              false,
+			follow:           false,
+			taillines:        10,
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
@@ -143,13 +155,11 @@ func TestLogs(t *testing.T) {
 			)
 			// configure mocks
 			sshSession.EXPECT().Context().Return(sshContext)
-			sshContext.EXPECT().SessionID().Return("test_session_id")
 			sshSession.EXPECT().RawCommand().Return(tc.rawCommand).Times(2)
 			// emulate ssh.Session.Command()
 			command, _ := shlex.Split(tc.rawCommand, true)
 			sshSession.EXPECT().Command().Return(command).Times(2)
 			sshSession.EXPECT().Subsystem().Return("")
-			sshSession.EXPECT().User().Return(tc.user).Times(3)
 			k8sService.EXPECT().FindDeployment(
 				sshContext,
 				tc.user,
@@ -159,31 +169,52 @@ func TestLogs(t *testing.T) {
 			sshPermissions := ssh.Permissions{Permissions: &gossh.Permissions{}}
 			sshContext.EXPECT().Permissions().Return(&sshPermissions).Times(5)
 			sshserver.PermissionsMarshal(sshContext, 1, 2, "foo", "bar")
-			// set up public key mock
-			publicKey, _, err := ed25519.GenerateKey(nil)
-			if err != nil {
-				tt.Fatal(err)
-			}
-			sshPublicKey, err := gossh.NewPublicKey(publicKey)
-			if err != nil {
-				tt.Fatal(err)
-			}
-			sshSession.EXPECT().PublicKey().Return(sshPublicKey)
 			// called by context.WithCancel()
 			sshContext.EXPECT().Value(gomock.Any()).Return(nil).AnyTimes()
 			// configure remaining mocks
 			sshContext.EXPECT().Done().Return(make(<-chan struct{})).AnyTimes()
-			k8sService.EXPECT().Logs(
-				gomock.Any(), // private childCtx
-				tc.user,
-				tc.deployment,
-				"",
-				tc.follow,
-				tc.taillines,
-				sshSession,
-			).Return(nil)
+			// set up test buffer
+			var buf bytes.Buffer
+			if tc.logAccessEnabled {
+				// set up mocks for logs enabled
+				sshContext.EXPECT().SessionID().Return("test_session_id")
+				sshSession.EXPECT().User().Return(tc.user).Times(3)
+				// set up public key mock
+				publicKey, _, err := ed25519.GenerateKey(nil)
+				if err != nil {
+					tt.Fatal(err)
+				}
+				sshPublicKey, err := gossh.NewPublicKey(publicKey)
+				if err != nil {
+					tt.Fatal(err)
+				}
+				sshSession.EXPECT().PublicKey().Return(sshPublicKey)
+				k8sService.EXPECT().Logs(
+					gomock.Any(), // private childCtx
+					tc.user,
+					tc.deployment,
+					"",
+					tc.follow,
+					tc.taillines,
+					sshSession,
+				).Return(nil)
+			} else {
+				// set up mocks for logs disabled
+				sshContext.EXPECT().SessionID().Return("test_session_id").Times(2)
+				sshSession.EXPECT().User().Return(tc.user)
+				sshSession.EXPECT().Exit(253).Return(nil)
+				sshSession.EXPECT().Stderr().Return(&buf)
+			}
 			// execute callback
 			callback(sshSession)
+			// check assertions
+			if !tc.logAccessEnabled {
+				assert.Equal(
+					tt,
+					"logs access is not enabled. SID: test_session_id\r\n",
+					buf.String(),
+					name)
+			}
 		})
 	}
 }
