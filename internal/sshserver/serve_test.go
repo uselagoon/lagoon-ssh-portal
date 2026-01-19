@@ -16,7 +16,7 @@ func TestDisableSHA1Kex(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
-			conf := disableSHA1Kex(nil)
+			conf := disableInsecureAlgos(nil)
 			assert.Equal(tt, tc.expect,
 				slices.Contains(conf.KeyExchanges, tc.input), name)
 		})

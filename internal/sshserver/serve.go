@@ -23,19 +23,28 @@ type NATSService interface {
 	KeyCanAccessEnvironment(string, string, string, int, int) (bool, error)
 }
 
-// disableSHA1Kex returns a ServerConfig which relies on default for everything
-// except key exchange algorithms. There it removes the SHA1 based algorithms.
+// disableInsecureAlgos returns a ServerConfig which removes the "insecure"
+// algorithms from the default list of MACs and KexAlgos.
 //
 // This works around https://github.com/golang/go/issues/59593
-func disableSHA1Kex(_ ssh.Context) *gossh.ServerConfig {
+func disableInsecureAlgos(_ ssh.Context) *gossh.ServerConfig {
 	c := gossh.ServerConfig{}
+	// x/crypto@v0.46.0 defaultMACs, minus InsecureHMACSHA196
+	c.MACs = []string{
+		gossh.HMACSHA256ETM,
+		gossh.HMACSHA512ETM,
+		gossh.HMACSHA256,
+		gossh.HMACSHA512,
+		gossh.HMACSHA1,
+	}
+	// x/crypto@v0.46.0 defaultKexAlgos, minus InsecureKeyExchangeDH14SHA1
 	c.KeyExchanges = []string{
-		"curve25519-sha256",
-		"curve25519-sha256@libssh.org",
-		"ecdh-sha2-nistp256",
-		"ecdh-sha2-nistp384",
-		"ecdh-sha2-nistp521",
-		"diffie-hellman-group14-sha256",
+		gossh.KeyExchangeMLKEM768X25519,
+		gossh.KeyExchangeCurve25519,
+		gossh.KeyExchangeECDHP256,
+		gossh.KeyExchangeECDHP384,
+		gossh.KeyExchangeECDHP521,
+		gossh.KeyExchangeDH14SHA256,
 	}
 	return &c
 }
@@ -57,7 +66,7 @@ func Serve(
 			"sftp": ssh.SubsystemHandler(sessionHandler(log, c, true, logAccessEnabled)),
 		},
 		PublicKeyHandler:     pubKeyHandler(log, nats, c),
-		ServerConfigCallback: disableSHA1Kex,
+		ServerConfigCallback: disableInsecureAlgos,
 		Banner:               banner,
 	}
 	for _, hk := range hostKeys {
