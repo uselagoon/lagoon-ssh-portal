@@ -1,6 +1,6 @@
 package lagoon
 
-//go:generate enumer -type=EnvironmentType -sql -transform=lower
+//go:generate go tool enumer -type=EnvironmentType -sql -transform=lower
 
 // EnvironmentType is an enum of valid Environment types.
 type EnvironmentType int
