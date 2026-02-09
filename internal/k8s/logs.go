@@ -82,8 +82,9 @@ func (c *Client) readLogs(ctx context.Context, requestID string,
 		}
 	}
 	for _, cStatus := range cStatuses {
+		streamID := requestID + cStatus.ContainerID
 		// skip setting up another log stream if container is already being logged
-		_, exists := c.logStreamIDs.LoadOrStore(requestID+cStatus.ContainerID, true)
+		_, exists := c.logStreamIDs.LoadOrStore(streamID, true)
 		if exists {
 			continue
 		}
@@ -101,7 +102,7 @@ func (c *Client) readLogs(ctx context.Context, requestID string,
 			return fmt.Errorf("couldn't stream logs: %v", err)
 		}
 		egSend.Go(func() error {
-			defer c.logStreamIDs.Delete(cStatus.ContainerID)
+			defer c.logStreamIDs.Delete(streamID)
 			defer logStream.Close()
 			linewiseCopy(ctx, fmt.Sprintf("[pod/%s/%s]", p.Name, cStatus.Name), logs,
 				logStream)
