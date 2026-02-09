@@ -120,7 +120,7 @@ func parseLogsArg(service, logs string, rawCmd string) (bool, int64, error) {
 	var follow bool
 	var tailLines int64
 	var err error
-	for _, arg := range strings.Split(logs, ",") {
+	for arg := range strings.SplitSeq(logs, ",") {
 		matches := tailLinesRegex.FindStringSubmatch(arg)
 		switch {
 		case arg == "follow":
