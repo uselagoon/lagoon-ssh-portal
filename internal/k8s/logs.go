@@ -19,6 +19,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+const (
+	lagoonJobTypeLabel   = "lagoon.sh/jobType"
+	lagoonBuildNameLabel = "lagoon.sh/buildName"
+	lagoonTaskNameLabel  = "lagoon.sh/taskName"
+)
+
 var (
 	// defaultTailLines is the number of log lines to tail by default if no number
 	// is specified
@@ -160,27 +166,20 @@ func (c *Client) podEventHandler(ctx context.Context,
 // for events and sending to the logs channel.
 func (c *Client) newPodInformer(ctx context.Context,
 	cancel context.CancelFunc, requestID string, egSend *errgroup.Group,
-	namespace, deployment, container string, follow bool, tailLines int64,
-	logs chan<- string) (cache.SharedIndexInformer, error) {
-	// get the deployment
-	d, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, deployment,
-		metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get deployment: %v", err)
-	}
+	namespace, container string, selector labels.Set, follow bool, tailLines int64,
+	logs chan<- string) (cache.SharedInformer, error) {
 	// configure the informer factory, filtering on deployment selector labels
 	factory := informers.NewSharedInformerFactoryWithOptions(
 		c.clientset,
 		time.Hour,
 		informers.WithNamespace(namespace),
 		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
-			opts.LabelSelector =
-				labels.SelectorFromSet(d.Spec.Selector.MatchLabels).String()
+			opts.LabelSelector = selector.String()
 		}),
 	)
 	// construct the informer
 	podInformer := factory.Core().V1().Pods().Informer()
-	_, err = podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// AddFunc handles events for new and existing pods. Since new pods are not
 		// in a ready state when initially added, it doesn't start log streaming
 		// for those.
@@ -204,10 +203,8 @@ func (c *Client) newPodInformer(ctx context.Context,
 	return podInformer, nil
 }
 
-// Logs takes a target namespace, deployment, and stdio stream, and writes the
-// log output of the pods of of the deployment to the stdio stream. If
-// container is specified, only logs of this container within the deployment
-// are returned.
+// sendLogs writes the log output of the pods identified by the given namespace
+// and selector to the given stdio stream.
 //
 // This function exits on one of the following events:
 //
@@ -216,25 +213,25 @@ func (c *Client) newPodInformer(ctx context.Context,
 //  2. ctx is cancelled (signalling that the SSH channel was closed).
 //  3. An unrecoverable error occurs.
 //
-// If a call to Logs would exceed the configured maximum number of concurrent
-// log sessions, ErrConcurrentLogLimit is returned.
+// If a call to sendLogs would exceed the configured maximum number of
+// concurrent log sessions, ErrConcurrentLogLimit is returned.
 //
 // If the configured log time limit is exceeded, ErrLogTimeLimit is returned.
-func (c *Client) Logs(
+func (c *Client) sendLogs(
 	ctx context.Context,
-	namespace,
-	deployment,
-	container string,
+	stdio io.Writer,
 	follow bool,
 	tailLines int64,
-	stdio io.ReadWriter,
+	namespace,
+	container string,
+	selector labels.Set,
 ) error {
-	// Exit with an error if we have hit the concurrent log limit.
+	// exit with an error if we have hit the concurrent log limit
 	if !c.logSem.TryAcquire(1) {
 		return ErrConcurrentLogLimit
 	}
 	defer c.logSem.Release(1)
-	// Wrap the context so we can cancel subroutines of this function on error.
+	// wrap the context so we can cancel subroutines of this function on error
 	childCtx, cancel := context.WithTimeout(ctx, c.logTimeLimit)
 	defer cancel()
 	// Generate a requestID value to uniquely distinguish between multiple calls
@@ -272,14 +269,15 @@ func (c *Client) Logs(
 	})
 	if follow {
 		// If following the logs, start a goroutine which watches for new (and
-		// existing) pods in the deployment and starts streaming logs from them.
+		// existing) pods matching the selector and starts streaming logs from them.
 		egSend.Go(func() error {
+			// construct the pod informer
 			podInformer, err := c.newPodInformer(childCtx, cancel, requestID,
-				&egSend, namespace, deployment, container, follow, tailLines, logs)
+				&egSend, namespace, container, selector, follow, tailLines, logs)
 			if err != nil {
 				return fmt.Errorf("couldn't construct new pod informer: %v", err)
 			}
-			podInformer.Run(childCtx.Done())
+			podInformer.RunWithContext(childCtx) // blocks until log streaming ends
 			if errors.Is(childCtx.Err(), context.DeadlineExceeded) {
 				return ErrLogTimeLimit
 			}
@@ -288,20 +286,15 @@ func (c *Client) Logs(
 	} else {
 		// If not following the logs, avoid constructing an informer. Instead just
 		// read the logs from all existing pods.
-		d, err := c.clientset.AppsV1().Deployments(namespace).Get(childCtx,
-			deployment, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("couldn't get deployment: %v", err)
-		}
 		pods, err := c.clientset.CoreV1().Pods(namespace).List(childCtx,
 			metav1.ListOptions{
-				LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
+				LabelSelector: selector.String(),
 			})
 		if err != nil {
 			return fmt.Errorf("couldn't get pods: %v", err)
 		}
 		if len(pods.Items) == 0 {
-			return fmt.Errorf("no pods for deployment %s", deployment)
+			return fmt.Errorf("no pods for selector %s", selector.String())
 		}
 		for _, pod := range pods.Items {
 			egSend.Go(func() error {
@@ -323,4 +316,78 @@ func (c *Client) Logs(
 	cancel()
 	wgRecv.Wait()
 	return sendErr
+}
+
+// LagoonContainerLogs takes a target namespace, deployment, and stdio stream,
+// and writes the log output of the pods of of the deployment to the stdio
+// stream. If container is specified, only logs of this container within the
+// deployment are returned.
+func (c *Client) LagoonContainerLogs(
+	ctx context.Context,
+	namespace,
+	deployment,
+	container string,
+	follow bool,
+	tailLines int64,
+	stdio io.ReadWriter,
+) error {
+	// get the deployment
+	d, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, deployment,
+		metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("couldn't get deployment: %v", err)
+	}
+	// start sending logs
+	return c.sendLogs(
+		ctx,
+		stdio,
+		follow,
+		tailLines,
+		namespace,
+		container,
+		d.Spec.Selector.MatchLabels,
+	)
+}
+
+// LagoonSystemLogs takes a target namespace, the lagoon system type
+// (build|task), the job name, and a stdio stream, and writes the log output of
+// the relevant pods to the stdio stream.
+//
+// If jobName is specified, only logs of pods with this job name are returned.
+func (c *Client) LagoonSystemLogs(
+	ctx context.Context,
+	namespace,
+	lagoonSystem string,
+	jobName string,
+	follow bool,
+	tailLines int64,
+	stdio io.ReadWriter,
+
+) error {
+	// construct selector
+	selector := labels.Set{}
+	switch lagoonSystem {
+	case "build":
+		selector[lagoonJobTypeLabel] = "build"
+		if jobName != "" {
+			selector[lagoonBuildNameLabel] = jobName
+		}
+	case "task":
+		selector[lagoonJobTypeLabel] = "task"
+		if jobName != "" {
+			selector[lagoonTaskNameLabel] = jobName
+		}
+	default:
+		return fmt.Errorf("invalid lagoon system log type %s", lagoonSystem)
+	}
+	// start sending logs
+	return c.sendLogs(
+		ctx,
+		stdio,
+		follow,
+		tailLines,
+		namespace,
+		"",
+		selector,
+	)
 }
