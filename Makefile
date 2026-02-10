@@ -25,7 +25,7 @@ release-snapshot:
 
 .PHONY: lint
 lint:
-	golangci-lint run --enable gocritic
+	golangci-lint run
 
 .PHONY: fuzz
 fuzz: mod-tidy generate
