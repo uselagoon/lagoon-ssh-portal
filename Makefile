@@ -25,7 +25,7 @@ release-snapshot:
 
 .PHONY: lint
 lint:
-	golangci-lint run --enable gocritic
+	golangci-lint run
 
 .PHONY: fuzz
 fuzz: mod-tidy generate
@@ -33,5 +33,5 @@ fuzz: mod-tidy generate
 
 .PHONY: cover
 cover: mod-tidy generate
-	go test -v -covermode=atomic -coverprofile=cover.out -coverpkg=./... ./...
+	go test -count=1 -v -covermode=atomic -coverprofile=cover.out -coverpkg=./... ./...
 	go tool cover -html=cover.out

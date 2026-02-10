@@ -19,7 +19,7 @@ func intFromLabel(labels map[string]string, label string) (int, error) {
 	var value string
 	var ok bool
 	if value, ok = labels[label]; !ok {
-		return 0, fmt.Errorf("no such label")
+		return 0, fmt.Errorf("no such label: %s", label)
 	}
 	return strconv.Atoi(value)
 }
