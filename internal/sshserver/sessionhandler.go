@@ -2,6 +2,7 @@ package sshserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/uselagoon/ssh-portal/internal/k8s"
 	gossh "golang.org/x/crypto/ssh"
 	"k8s.io/utils/exec"
 )
@@ -312,6 +314,29 @@ func startClientKeepalive(ctx context.Context, cancel context.CancelFunc,
 	}
 }
 
+// handleLogsErr inspects the given error, logs the details, and returns an
+// appropriate message to the ssh session.
+func handleLogsErr(s ssh.Session, log *slog.Logger, err error) {
+	var errMsg string
+	if errors.Is(err, k8s.ErrNoSelectorMatch) {
+		errMsg = err.Error()
+	} else {
+		errMsg = "log stream interrupted"
+	}
+	log.Info(errMsg, slog.Any("error", err))
+	_, err = fmt.Fprintf(
+		s.Stderr(), "%s. SID: %s\r\n", errMsg, s.Context().SessionID())
+	if err != nil {
+		log.Debug("couldn't send error to client", slog.Any("error", err))
+	}
+	// Send a non-zero exit code to the client on internal logs error.
+	// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
+	// differentiate this error.
+	if err = s.Exit(253); err != nil {
+		log.Debug("couldn't send exit code to client", slog.Any("error", err))
+	}
+}
+
 // lagoonContainerLogsSession handles a log access session.
 func lagoonContainerLogsSession(
 	log *slog.Logger,
@@ -400,18 +425,7 @@ func lagoonContainerLogsSession(
 	err = c.LagoonContainerLogs(
 		childCtx, s.User(), deployment, container, follow, tailLines, s)
 	if err != nil {
-		log.Warn("log stream interrupted", slog.Any("error", err))
-		_, err = fmt.Fprintf(
-			s.Stderr(), "log stream interrupted. SID: %s\r\n", ctx.SessionID())
-		if err != nil {
-			log.Debug("couldn't send error to client", slog.Any("error", err))
-		}
-		// Send a non-zero exit code to the client on internal logs error.
-		// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
-		// differentiate this error.
-		if err = s.Exit(253); err != nil {
-			log.Warn("couldn't send exit code to client", slog.Any("error", err))
-		}
+		handleLogsErr(s, log, err)
 	}
 	log.Debug("finished command container logs")
 }
@@ -491,18 +505,7 @@ func lagoonSystemLogsSession(
 	err = c.LagoonSystemLogs(
 		childCtx, s.User(), lagoonSystem.String(), name, follow, tailLines, s)
 	if err != nil {
-		log.Warn("log stream interrupted", slog.Any("error", err))
-		_, err = fmt.Fprintf(
-			s.Stderr(), "log stream interrupted. SID: %s\r\n", ctx.SessionID())
-		if err != nil {
-			log.Debug("couldn't send error to client", slog.Any("error", err))
-		}
-		// Send a non-zero exit code to the client on internal logs error.
-		// OpenSSH uses 255 for this, 254 is an exec failure, so use 253 to
-		// differentiate this error.
-		if err = s.Exit(253); err != nil {
-			log.Warn("couldn't send exit code to client", slog.Any("error", err))
-		}
+		handleLogsErr(s, log, err)
 	}
 	log.Debug("finished command system logs")
 }

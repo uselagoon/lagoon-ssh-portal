@@ -41,6 +41,10 @@ var (
 	// ErrLogTimeLimit indicates that the maximum log session time has been
 	// exceeded.
 	ErrLogTimeLimit = errors.New("exceeded maximum log session time")
+	// ErrNoSelectorMatch is returned from LagoonContainerLogs and
+	// LagoonSystemLogs when follow is false and there are no pods matching the
+	// given selector.
+	ErrNoSelectorMatch = errors.New("no pods matched selector")
 )
 
 // linewiseCopy reads strings separated by \n from logStream, and writes them
@@ -294,7 +298,7 @@ func (c *Client) sendLogs(
 			return fmt.Errorf("couldn't get pods: %v", err)
 		}
 		if len(pods.Items) == 0 {
-			return fmt.Errorf("no pods for selector %s", selector.String())
+			return ErrNoSelectorMatch
 		}
 		for _, pod := range pods.Items {
 			egSend.Go(func() error {
