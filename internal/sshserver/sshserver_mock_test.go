@@ -73,18 +73,32 @@ func (mr *MockK8SAPIServiceMockRecorder) FindDeployment(arg0, arg1, arg2 any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeployment", reflect.TypeOf((*MockK8SAPIService)(nil).FindDeployment), arg0, arg1, arg2)
 }
 
-// Logs mocks base method.
-func (m *MockK8SAPIService) Logs(arg0 context.Context, arg1, arg2, arg3 string, arg4 bool, arg5 int64, arg6 io.ReadWriter) error {
+// LagoonContainerLogs mocks base method.
+func (m *MockK8SAPIService) LagoonContainerLogs(ctx context.Context, namespace, deployment, container string, follow bool, tailLines int64, stdio io.ReadWriter) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Logs", arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+	ret := m.ctrl.Call(m, "LagoonContainerLogs", ctx, namespace, deployment, container, follow, tailLines, stdio)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Logs indicates an expected call of Logs.
-func (mr *MockK8SAPIServiceMockRecorder) Logs(arg0, arg1, arg2, arg3, arg4, arg5, arg6 any) *gomock.Call {
+// LagoonContainerLogs indicates an expected call of LagoonContainerLogs.
+func (mr *MockK8SAPIServiceMockRecorder) LagoonContainerLogs(ctx, namespace, deployment, container, follow, tailLines, stdio any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logs", reflect.TypeOf((*MockK8SAPIService)(nil).Logs), arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LagoonContainerLogs", reflect.TypeOf((*MockK8SAPIService)(nil).LagoonContainerLogs), ctx, namespace, deployment, container, follow, tailLines, stdio)
+}
+
+// LagoonSystemLogs mocks base method.
+func (m *MockK8SAPIService) LagoonSystemLogs(ctx context.Context, namespace, lagoonSystem, jobName string, follow bool, tailLines int64, stdio io.ReadWriter) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LagoonSystemLogs", ctx, namespace, lagoonSystem, jobName, follow, tailLines, stdio)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// LagoonSystemLogs indicates an expected call of LagoonSystemLogs.
+func (mr *MockK8SAPIServiceMockRecorder) LagoonSystemLogs(ctx, namespace, lagoonSystem, jobName, follow, tailLines, stdio any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LagoonSystemLogs", reflect.TypeOf((*MockK8SAPIService)(nil).LagoonSystemLogs), ctx, namespace, lagoonSystem, jobName, follow, tailLines, stdio)
 }
 
 // NamespaceDetails mocks base method.

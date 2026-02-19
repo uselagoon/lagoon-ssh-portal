@@ -17,8 +17,8 @@ To perform authentication it communicates back to `ssh-portal-api` running in La
 `ssh-portal` implements shell access with service and container selection [as described in the Lagoon documentation](https://docs.lagoon.sh/using-lagoon-advanced/ssh/#ssh-into-a-pod), but it does not implement token generation.
 Unlike the existing Lagoon SSH service, `ssh-portal` _only_ provides access to Lagoon environments running in the local cluster.
 
-`ssh-portal` also implements container logs access via SSH.
-Users can retrieve logs by giving a `logs=tailLines=n,follow` argument to the ssh command, where `n` is a positive integer and `,follow` is optional.
+`ssh-portal` also implements container, build, and task logs access via SSH.
+Users can retrieve logs by giving a `logs=tailLines=n,follow` argument to the ssh command, where `n` is a non-negative integer and `,follow` is optional.
 The logs API should not be considered stable and should be accessed through the [Lagoon CLI](https://github.com/uselagoon/lagoon-cli).
 This feature is disabled by default; see Usage below to enable it.
 
