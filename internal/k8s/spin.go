@@ -28,15 +28,13 @@ var (
 func spinAfter(ctx context.Context, w io.Writer, wait time.Duration) *sync.WaitGroup {
 	var wg sync.WaitGroup
 	wt := time.NewTimer(wait)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		select {
 		case <-ctx.Done():
 		case <-wt.C:
 			spin(ctx, w)
 		}
-	}()
+	})
 	return &wg
 }
 

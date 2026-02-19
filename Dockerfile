@@ -3,4 +3,6 @@ ARG BINARY=binary-build-arg-not-defined
 ENV BINARY=${BINARY}
 ENTRYPOINT ["sh", "-c"]
 CMD ["exec /${BINARY}"]
-COPY ${BINARY} /
+# TARGETPLATFORM is defined by goreleaser during the build
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/${BINARY} /
