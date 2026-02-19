@@ -28,95 +28,43 @@ builds:
   binary: ssh-token
   main: ./cmd/ssh-token
 
+checksum:
+  name_template: checksums.txt
+
+sboms:
+- artifacts: archive
+
 changelog:
   use: github-native
 
-dockers:
-# ssh-portal
-- ids:
+dockers_v2:
+- id: ssh-portal
+  ids:
   - ssh-portal
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-amd64"
-  use: buildx
-  build_flag_templates:
-  - "--build-arg=BINARY=ssh-portal"
-  - "--platform=linux/amd64"
-- ids:
-  - ssh-portal
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-arm64v8"
-  use: buildx
-  goarch: arm64
-  build_flag_templates:
-  - "--build-arg=BINARY=ssh-portal"
-  - "--platform=linux/arm64/v8"
-# ssh-portal-api
-- ids:
+  images:
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal"
+  tags:
+  - "v{{ .Version }}"
+  - latest
+  build_args:
+    BINARY: ssh-portal
+- id: ssh-portal-api
+  ids:
   - ssh-portal-api
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-amd64"
-  use: buildx
-  build_flag_templates:
-  - "--build-arg=BINARY=ssh-portal-api"
-  - "--platform=linux/amd64"
-- ids:
-  - ssh-portal-api
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-arm64v8"
-  use: buildx
-  goarch: arm64
-  build_flag_templates:
-  - "--build-arg=BINARY=ssh-portal-api"
-  - "--platform=linux/arm64/v8"
-# ssh-token
-- ids:
+  images:
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api"
+  tags:
+  - "v{{ .Version }}"
+  - latest
+  build_args:
+    BINARY: ssh-portal-api
+- id: ssh-token
+  ids:
   - ssh-token
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
-  use: buildx
-  build_flag_templates:
-  - "--build-arg=BINARY=ssh-token"
-  - "--platform=linux/amd64"
-- ids:
-  - ssh-token
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
-  use: buildx
-  goarch: arm64
-  build_flag_templates:
-  - "--build-arg=BINARY=ssh-token"
-  - "--platform=linux/arm64/v8"
-
-docker_manifests:
-# ssh-portal
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}"
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-arm64v8"
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:latest"
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal:v{{ .Version }}-arm64v8"
-# ssh-portal-api
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}"
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-arm64v8"
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:latest"
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-portal-api:v{{ .Version }}-arm64v8"
-# ssh-token
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}"
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
-- name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:latest"
-  image_templates:
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-amd64"
-  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token:v{{ .Version }}-arm64v8"
-
-release:
-  extra_files:
-  - glob: "{{ .Env.GITHUB_SBOM_PATH }}"
-    name_template: "{{ .ProjectName }}.v{{ .Version }}.sbom.spdx.json"
+  images:
+  - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}/ssh-token"
+  tags:
+  - "v{{ .Version }}"
+  - latest
+  build_args:
+    BINARY: ssh-token
