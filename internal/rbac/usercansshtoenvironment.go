@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/uselagoon/ssh-portal/internal/lagoon"
@@ -55,12 +56,10 @@ func (p *Permission) UserCanSSHToEnvironment(
 			fmt.Errorf("couldn't query roles and groups for user %v: %v", userUUID, err)
 	}
 	// check for platform owner
-	for _, r := range realmRoles {
-		if r == "platform-owner" {
-			log.Debug("granting permission due to platform-owner realm role",
-				slog.Any("realmRoles", realmRoles))
-			return true, nil
-		}
+	if slices.Contains(realmRoles, "platform-owner") {
+		log.Debug("granting permission due to platform-owner realm role",
+			slog.Any("realmRoles", realmRoles))
+		return true, nil
 	}
 	// convert the group paths to group ID -> role map
 	userGroupIDRole := p.keycloak.UserGroupIDRole(ctx, userGroupPaths)
