@@ -33,7 +33,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/alecthomas/repr v0.5.2 // indirect
+	github.com/alecthomas/repr v0.5.3-0.20260502073839-3f2070383259 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dmarkham/enumer v1.6.1 // indirect
@@ -92,11 +92,9 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/alecthomas/repr => github.com/smlx/repr v0.0.0-20260105153858-60aa893da7a0
-
 tool (
 	github.com/dmarkham/enumer
 	go.uber.org/mock/mockgen
 )
 
-replace go.uber.org/mock => github.com/smlx/mock v0.0.0-20251021122142-0a357f25120d
+replace go.uber.org/mock => github.com/smlx/mock v0.0.0-20260504152112-19ed42fa0ba6
