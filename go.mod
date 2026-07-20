@@ -97,4 +97,4 @@ tool (
 	go.uber.org/mock/mockgen
 )
 
-replace go.uber.org/mock => github.com/smlx/mock v0.0.0-20260504152112-19ed42fa0ba6
+replace go.uber.org/mock => github.com/smlx/mock v0.0.0-20260720095851-e5bd06032669
