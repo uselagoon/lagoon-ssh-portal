@@ -27,6 +27,11 @@ type LagoonDBService interface {
 	SSHKeyUsed(context.Context, string, time.Time) error
 }
 
+// NATSService provides methods for publishing NATS reply messages.
+type NATSService interface {
+	Publish(subj string, data []byte) error
+}
+
 // ServeNATS sshportalapi NATS requests.
 func ServeNATS(
 	ctx context.Context,

@@ -31,7 +31,7 @@ var (
 func sshportal(
 	ctx context.Context,
 	log *slog.Logger,
-	c *nats.Conn,
+	c NATSService,
 	p *rbac.Permission,
 	ldb LagoonDBService,
 ) nats.MsgHandler {
