@@ -73,9 +73,7 @@ func sshportal(
 		// error.
 		if (query.ProjectID != 0 && query.ProjectID != env.ProjectID) ||
 			(query.EnvironmentID != 0 && query.EnvironmentID != env.ID) {
-			log.Warn("ID mismatch in environment identification",
-				slog.Any("env", env),
-				slog.Any("error", err))
+			log.Warn("ID mismatch in environment identification", slog.Any("env", env))
 			if err = c.Publish(msg.Reply, falseResponse); err != nil {
 				log.Error("couldn't publish reply", slog.Any("error", err))
 			}
