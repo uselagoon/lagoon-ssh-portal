@@ -64,8 +64,8 @@ func NewClient(ctx context.Context, dsn string) (*Client, error) {
 	}, nil
 }
 
-// EnvironmentByNamespaceName returns the Environment associated with the given
-// Namespace name.
+// EnvironmentByNamespaceName returns the newest Environment associated with the
+// given Namespace name.
 func (c *Client) EnvironmentByNamespaceName(
 	ctx context.Context,
 	name string,
@@ -88,6 +88,7 @@ func (c *Client) EnvironmentByNamespaceName(
 			`FROM environment JOIN project ON environment.project = project.id `+
 			`WHERE environment.openshift_project_name = ? `+
 			`AND environment.deleted = '0000-00-00 00:00:00' `+
+			`ORDER BY created DESC `+
 			`LIMIT 1`, name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
