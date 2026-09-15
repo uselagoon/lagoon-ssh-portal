@@ -88,7 +88,7 @@ func (c *Client) EnvironmentByNamespaceName(
 			`FROM environment JOIN project ON environment.project = project.id `+
 			`WHERE environment.openshift_project_name = ? `+
 			`AND environment.deleted = '0000-00-00 00:00:00' `+
-			`ORDER BY created DESC `+
+			`ORDER BY environment.created DESC `+
 			`LIMIT 1`, name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
