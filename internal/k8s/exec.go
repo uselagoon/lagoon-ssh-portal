@@ -6,34 +6,32 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-var (
-	// idleReplicaAnnotations are used to determine how many replicas to set when
-	// scaling up a deployment from idle. The annotations are in priority order
-	// from high to low. The first annotation found on a deployment will be used.
-	idleReplicaAnnotations = []string{
-		"idling.lagoon.sh/unidle-replicas",
-		"idling.amazee.io/unidle-replicas",
-	}
-	// idleWatchLabels are used to select deployments to scale when unidling a
-	// namespace. The labels are in priority order from high to low. The first
-	// label found on any deployment will be used.
-	idleWatchLabels = []string{
-		"idling.lagoon.sh/watch=true",
-		"idling.amazee.io/watch=true",
-	}
+const (
+	// idledLabelLagoon and idledLabelAmazee mark a namespace as idled by
+	// aergia-controller.
+	idledLabelLagoon = "idling.lagoon.sh/idled"
+	idledLabelAmazee = "idling.amazee.io/idled"
+	// controlConfigMap is the name of the ConfigMap in a namespace used to
+	// send requests to aergia-controller.
+	controlConfigMap = "aergia-control"
+	// controlLabel must be set to "true" on the control ConfigMap.
+	controlLabel = "idling.lagoon.sh/control"
+	// unidleKey is the control ConfigMap data key patched to "true" to request
+	// that aergia-controller unidle the namespace.
+	unidleKey = "unidle"
 )
 
 // podContainer returns the first running pod and first container inside that
@@ -84,88 +82,62 @@ func (c *Client) hasRunningPod(ctx context.Context,
 	}
 }
 
-// unidleReplicas checks the idleReplicaAnnotations for the number of replicas
-// to restore. If the labels cannot be found or parsed, 1 is returned. The
-// return value is clamped to the interval [1,16].
-func unidleReplicas(deploy appsv1.Deployment) int {
-	for _, ra := range idleReplicaAnnotations {
-		rs, ok := deploy.Annotations[ra]
-		if !ok {
-			continue
-		}
-		r, err := strconv.Atoi(rs)
-		if err != nil || r < 1 {
-			return 1
-		}
-		if r > 16 {
-			return 16
-		}
-		return r
-	}
-	return 1
-}
-
-// idledDeploys returns the DeploymentList of idled deployments in the given
-// namespace.
-func (c *Client) idledDeploys(ctx context.Context, namespace string) (
-	*appsv1.DeploymentList, error,
-) {
-	var deploys *appsv1.DeploymentList
-	for _, selector := range idleWatchLabels {
-		deploys, err := c.clientset.AppsV1().Deployments(namespace).List(ctx,
-			metav1.ListOptions{
-				LabelSelector: selector,
-			})
-		if err != nil {
-			return nil, fmt.Errorf("couldn't select deploys by label: %v", err)
-		}
-		if deploys != nil && len(deploys.Items) > 0 {
-			return deploys, nil
-		}
-	}
-	return deploys, nil
-}
-
-// unidleNamespace scales all deployments with the idleWatchLabels up to the
-// number of replicas in the idleReplicaAnnotations.
-func (c *Client) unidleNamespace(ctx context.Context, namespace string) error {
-	deploys, err := c.idledDeploys(ctx, namespace)
+// requestUnidle asks aergia-controller to unidle the namespace by patching
+// the control ConfigMap. It is a no-op if the namespace is not labelled idled
+// and the target deployment is already running. If the ConfigMap does not
+// exist (for example a namespace idled only at the CLI level), the request is
+// skipped and the caller falls back to scaling the target directly.
+func (c *Client) requestUnidle(ctx context.Context, namespace,
+	deployment string) error {
+	ns, err := c.clientset.CoreV1().Namespaces().Get(ctx, namespace,
+		metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("couldn't get idled deploys: %v", err)
+		return fmt.Errorf("couldn't get namespace: %v", err)
 	}
-	if deploys == nil {
-		return nil // no deploys to unidle
-	}
-	for _, deploy := range deploys.Items {
-		// check if idled
+	idled := ns.Labels[idledLabelLagoon] == "true" ||
+		ns.Labels[idledLabelAmazee] == "true"
+	if !idled {
 		s, err := c.clientset.AppsV1().Deployments(namespace).
-			GetScale(ctx, deploy.Name, metav1.GetOptions{})
+			GetScale(ctx, deployment, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("couldn't get deployment scale: %v", err)
 		}
 		if s.Spec.Replicas > 0 {
-			continue
+			return nil
 		}
-		// scale up the deployment
-		sc := *s
-		sc.Spec.Replicas = int32(unidleReplicas(deploy))
-		_, err = c.clientset.AppsV1().Deployments(namespace).
-			UpdateScale(ctx, deploy.Name, &sc, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("couldn't scale deployment: %v", err)
-		}
+	}
+	cm, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx,
+		controlConfigMap, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("couldn't get %s configmap: %v", controlConfigMap, err)
+	}
+	if cm.Labels[controlLabel] != "true" {
+		return nil
+	}
+	patch := fmt.Sprintf(`{"data":{%q:"true"}}`, unidleKey)
+	_, err = c.clientset.CoreV1().ConfigMaps(namespace).Patch(ctx,
+		controlConfigMap, types.MergePatchType, []byte(patch),
+		metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("couldn't patch %s configmap: %v", controlConfigMap,
+			err)
 	}
 	return nil
 }
 
-func (c *Client) ensureScaled(ctx context.Context, namespace, deployment string) error {
-	// get current scale
+// ensureScaled scales the target deployment up to one replica if it is still
+// at zero, then waits for a pod to start running. This covers deployments
+// outside aergia-controller's selection (legacy labels, CLI-only idling).
+func (c *Client) ensureScaled(ctx context.Context, namespace,
+	deployment string) error {
 	s, err := c.clientset.AppsV1().Deployments(namespace).
 		GetScale(ctx, deployment, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("couldn't get deployment scale: %v", err)
 	}
-	// scale up the deployment if required
 	if s.Spec.Replicas == 0 {
 		sc := *s
 		sc.Spec.Replicas = 1
@@ -175,7 +147,6 @@ func (c *Client) ensureScaled(ctx context.Context, namespace, deployment string)
 			return fmt.Errorf("couldn't scale deployment: %v", err)
 		}
 	}
-	// wait for a pod to start running
 	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true,
 		c.hasRunningPod(ctx, namespace, deployment))
 }
@@ -196,11 +167,11 @@ func (c *Client) getExecutor(ctx context.Context, namespace, deployment,
 		defer wg.Wait()
 	}
 	defer cancel()
-	// unidle the entire namespace asynchronously
-	if err := c.unidleNamespace(ctx, namespace); err != nil {
+	// request unidling of the namespace if idled
+	if err := c.requestUnidle(ctx, namespace, deployment); err != nil {
 		return nil, fmt.Errorf("couldn't unidle namespace: %v", err)
 	}
-	// ensure the target deployment has at least one replica
+	// wait for the target deployment to have a running pod
 	if err := c.ensureScaled(ctx, namespace, deployment); err != nil {
 		return nil, fmt.Errorf("couldn't scale deployment: %v", err)
 	}
